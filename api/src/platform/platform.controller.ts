@@ -4,6 +4,7 @@ import { PlatformRole } from '@prisma/client';
 import type { AuthPrincipal } from '../auth/auth.types';
 import { CurrentAuth } from '../auth/decorators';
 import { Errors } from '../common/errors';
+import { ORG_PERMISSIONS, PLATFORM_PERMISSIONS } from '../permissions/catalog';
 import { PermissionsService } from '../permissions/permissions.service';
 import { PlatformScoped, RequirePlatformPermission } from '../permissions/decorators';
 import {
@@ -147,6 +148,13 @@ export class PlatformAdminController {
   @RequirePlatformPermission('platform.plans.write')
   updateTrialConfig(@CurrentAuth() auth: AuthPrincipal, @Body() dto: TrialConfigDto) {
     return this.admin.updateTrialConfig(platformUser(auth).platformUserId, dto);
+  }
+
+  /** Catálogo de permisos (organización y plataforma) para las matrices de roles. */
+  @Get('permission-catalog')
+  @RequirePlatformPermission('platform.roles.write')
+  permissionCatalog() {
+    return { organization: ORG_PERMISSIONS, platform: PLATFORM_PERMISSIONS };
   }
 
   @Get('role-templates')

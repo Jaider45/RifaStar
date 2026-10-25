@@ -14,4 +14,5 @@ export function slugify(input: string, maxLength = 60): string {
 export const RESERVED_ORG_SLUGS = new Set([
   'admin', 'api', 'app', 'plataforma', 'platform', 'v1', 's', 'r', 'mis-boletos', 'login',
   'registro', 'signup', 'ayuda', 'soporte', 'support', 'static', 'assets', 'www', 'rifastar',
+  'invitacion', 'olvide', 'restablecer', 'salir', 'ranking',
 ]);

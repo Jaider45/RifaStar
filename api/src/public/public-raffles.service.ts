@@ -34,6 +34,7 @@ export class PublicRafflesService {
       });
       const branding = await this.settings.read(tx, 'branding');
       const whiteLabel = await this.plans.hasFeature(org.id, 'whiteLabel');
+      const rafflesCompleted = await tx.raffle.count({ where: { status: 'drawn', deletedAt: null } });
       const available = r.totalNumbers - r.paidCount - r.heldCount;
       return {
         organization: {
@@ -42,6 +43,8 @@ export class PublicRafflesService {
           supportWhatsapp: org.supportWhatsapp,
           logoUrl: org.logoKey ? await this.storage.signedGetUrl(org.logoKey, 3600) : null,
           showRifaStarBadge: !(branding.data.hideRifaStarBadge && whiteLabel),
+          rafflesCompleted,
+          timezone: org.timezone,
         },
         raffle: {
           slug: r.slug,
@@ -77,6 +80,46 @@ export class PublicRafflesService {
         },
         paymentAccounts: accounts.map(presentPaymentAccount),
         serverTime: new Date(),
+      };
+    });
+  }
+
+  /** Perfil público de la org: marca y sus sorteos en venta o recientes. */
+  async organization(org: Organization) {
+    return this.db.tenantTx(org.id, async (tx) => {
+      const branding = await this.settings.read(tx, 'branding');
+      const whiteLabel = await this.plans.hasFeature(org.id, 'whiteLabel');
+      const ranking = (await this.settings.read(tx, 'ranking')).data.enabled && (await this.plans.hasFeature(org.id, 'ranking'));
+      const raffles = await tx.raffle.findMany({
+        where: { deletedAt: null, status: { in: ['active', 'sold_out', 'closed', 'drawn'] } },
+        orderBy: { drawAt: 'desc' },
+        take: 12,
+      });
+      const present = async (r: (typeof raffles)[number]) => ({
+        slug: r.slug,
+        title: r.title,
+        lottery: r.lottery,
+        drawAt: r.drawAt,
+        status: r.status,
+        pricePerNumber: r.pricePerNumber,
+        digits: r.digits,
+        progress: { paid: r.paidCount, total: r.totalNumbers },
+        coverUrl: r.coverImageKey ? await this.storage.signedGetUrl(r.coverImageKey, 3600) : null,
+        resultsPublished: Boolean(r.resultsPublishedAt),
+      });
+      const upcoming = raffles.filter((r) => r.status === 'active' || r.status === 'sold_out').sort((a, b) => a.drawAt.getTime() - b.drawAt.getTime());
+      return {
+        name: org.name,
+        slug: org.slug,
+        supportWhatsapp: org.supportWhatsapp,
+        accentColor: org.defaultAccentColor,
+        logoUrl: org.logoKey ? await this.storage.signedGetUrl(org.logoKey, 3600) : null,
+        showRifaStarBadge: !(branding.data.hideRifaStarBadge && whiteLabel),
+        rankingEnabled: ranking,
+        timezone: org.timezone,
+        rafflesCompleted: await tx.raffle.count({ where: { status: 'drawn', deletedAt: null } }),
+        nextRaffle: upcoming[0] ? await present(upcoming[0]) : null,
+        raffles: await Promise.all(raffles.map(present)),
       };
     });
   }

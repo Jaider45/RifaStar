@@ -62,6 +62,14 @@ export class PublicController {
     return this.results.publicResults(org.id, raffleSlug, org.timezone);
   }
 
+  @Get('orgs/:orgSlug')
+  @RateLimit({ name: 'pub-org', by: ['ip'], limit: 120, windowSeconds: 60 })
+  async organization(@Param('orgSlug') orgSlug: string, @Res({ passthrough: true }) res: Response) {
+    const org = await this.access.org(orgSlug);
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    return this.raffles.organization(org);
+  }
+
   @Get('orgs/:orgSlug/raffles/:raffleSlug')
   @RateLimit({ name: 'pub-raffle', by: ['ip'], limit: 120, windowSeconds: 60 })
   async raffle(@Param('orgSlug') orgSlug: string, @Param('raffleSlug') raffleSlug: string, @Res({ passthrough: true }) res: Response) {

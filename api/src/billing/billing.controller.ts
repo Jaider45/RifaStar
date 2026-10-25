@@ -30,6 +30,13 @@ export class BillingController {
     return this.billing.overview(org);
   }
 
+  /** Planes disponibles para cambiar (solo los que se pueden comprar o el actual). */
+  @Get('plans')
+  @RequirePermission('settings.billing')
+  plans() {
+    return this.billing.catalog();
+  }
+
   @Get('invoices')
   @RequirePermission('settings.billing')
   async invoices(@CurrentOrg() org: OrgContext) {

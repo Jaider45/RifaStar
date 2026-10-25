@@ -54,6 +54,26 @@ export class BillingService {
     };
   }
 
+  async catalog() {
+    const plans = await this.db.system.plan.findMany({ where: { archivedAt: null }, orderBy: [{ sortOrder: 'asc' }, { monthlyPriceCop: 'asc' }] });
+    return plans.map((p) => ({
+      code: p.code,
+      name: p.name,
+      monthlyPriceCop: p.monthlyPriceCop,
+      highlighted: p.highlighted,
+      purchasable: Boolean((p.externalPriceIds as Record<string, string>)[this.provider.kind]),
+      limits: { activeRaffles: p.maxActiveRaffles, members: p.maxMembers, whatsappMessages: p.monthlyWhatsappMessages },
+      features: {
+        ranking: p.featureRanking,
+        whatsappAutomation: p.featureWhatsappAuto,
+        sellers: p.featureSellers,
+        customRoles: p.featureCustomRoles,
+        customDomain: p.featureCustomDomain,
+        whiteLabel: p.featureWhiteLabel,
+      },
+    }));
+  }
+
   async checkout(org: OrgContext, planCode: string, userEmail: string) {
     const plan = await this.db.system.plan.findUnique({ where: { code: planCode } });
     if (!plan || plan.archivedAt) throw Errors.validation({ field: 'planCode' }, 'Ese plan no existe.');

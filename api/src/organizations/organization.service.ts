@@ -34,9 +34,20 @@ export class OrganizationService {
     private readonly storage: StorageProvider,
   ) {}
 
+  /** Perfil de la org + quién la está viendo (rol, permisos, modo soporte) para el panel. */
   async get(org: OrgContext) {
     const row = await this.db.tenantTx(org.id, (tx) => tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: PUBLIC_FIELDS }));
-    return { ...row, logoUrl: row.logoKey ? await this.storage.signedGetUrl(row.logoKey, 3600) : null };
+    return {
+      ...row,
+      logoUrl: row.logoKey ? await this.storage.signedGetUrl(row.logoKey, 3600) : null,
+      viewer: {
+        memberId: org.memberId,
+        roleKey: org.roleKey,
+        permissions: [...org.permissions],
+        readOnly: org.readOnly,
+        supportSessionId: org.supportSessionId,
+      },
+    };
   }
 
   async setCustomDomain(org: OrgContext, domain: string | null) {
