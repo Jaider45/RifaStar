@@ -43,3 +43,14 @@ export class UpdateRoleDto extends createZodDto(
     permissions: zPermissionKeys.optional(),
   }),
 ) {}
+
+export class CustomDomainDto extends createZodDto(
+  z.object({
+    domain: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^(?=.{4,253}$)([a-z0-9](-?[a-z0-9])*\.)+[a-z]{2,}$/, 'Escribe un dominio válido, por ejemplo rifas.tunegocio.com.')
+      .nullable(),
+  }),
+) {}

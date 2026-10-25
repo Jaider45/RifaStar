@@ -31,6 +31,8 @@ import { RankingModule } from './ranking/ranking.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { MyTicketsModule } from './my-tickets/my-tickets.module';
 import { PlansModule } from './plans/plans.module';
+import { BillingModule } from './billing/billing.module';
+import { PlatformModule } from './platform/platform.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -57,6 +59,8 @@ import { StorageModule } from './storage/storage.module';
     RankingModule,
     PublicModule,
     MyTicketsModule,
+    BillingModule,
+    PlatformModule,
     DashboardModule,
     MaintenanceModule,
   ],

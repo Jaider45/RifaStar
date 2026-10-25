@@ -11,6 +11,8 @@ export interface ProvisionOrgInput {
   /** Sin plan: arranca en prueba con el plan de TrialConfig. */
   planCode?: string;
   timezone?: string;
+  /** Hash del token de invitación: el owner queda «invitado» hasta aceptar (orgs creadas por la plataforma). */
+  ownerInviteTokenHash?: string;
 }
 
 /**
@@ -77,8 +79,9 @@ export class ProvisioningService {
         organizationId: org.id,
         userId: input.ownerUserId,
         roleId: ownerRole.id,
-        status: 'active',
-        joinedAt: now,
+        ...(input.ownerInviteTokenHash
+          ? { status: 'invited', inviteTokenHash: input.ownerInviteTokenHash, inviteExpiresAt: new Date(now.getTime() + 7 * 86_400_000) }
+          : { status: 'active', joinedAt: now }),
       },
     });
     await tx.orgSettings.createMany({

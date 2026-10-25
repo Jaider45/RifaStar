@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zUuid } from '../common/zod';
 import { NotificationsService } from '../messaging/notifications.service';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
+import { RequireFeature } from '../plans/plan.guard';
 import type { OrgContext } from '../tenancy/org-context';
 import { RankingService } from './ranking.service';
 
@@ -18,6 +19,7 @@ class AdjustmentDto extends createZodDto(
 
 @ApiTags('Ranking')
 @OrgScoped()
+@RequireFeature('ranking')
 @Controller('ranking')
 export class RankingController {
   constructor(

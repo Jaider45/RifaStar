@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import type { OrgContext } from '../tenancy/org-context';
 import type { OrgPermission, PlatformPermission } from './catalog';
 import { ALLOW_WHEN_SUSPENDED, PERMISSION_RESOLVER, REQUIRED_PERMISSIONS, REQUIRED_PLATFORM_PERMISSIONS } from './metadata';
+import { PlanGuard } from '../plans/plan.guard';
 import { OrgGuard } from './org.guard';
 import { PlatformGuard } from './platform.guard';
 
@@ -27,7 +28,7 @@ export const AllowWhenSuspended = () => SetMetadata(ALLOW_WHEN_SUSPENDED, true);
 /** Controlador del panel de una organización: sesión + X-Organization-Id + permisos. */
 export const OrgScoped = () =>
   applyDecorators(
-    UseGuards(OrgGuard),
+    UseGuards(OrgGuard, PlanGuard),
     ApiBearerAuth(),
     ApiHeader({ name: 'X-Organization-Id', required: true, description: 'Organización activa' }),
   );

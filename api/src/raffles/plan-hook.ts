@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { Tx } from '../database/database.service';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import type { OrgContext } from '../tenancy/org-context';
 
-/**
- * Punto de enganche para los límites del plan al activar un sorteo. La
- * implementación real (PlanGuard / PlanPolicy) llega en la fase 6.
- */
+/** Límites del plan al activar un sorteo (dentro de la transacción de publicar). */
 @Injectable()
 export class PlanPolicyHook {
-  async assertCanActivateRaffle(_org: OrgContext, _tx: Tx): Promise<void> {}
+  constructor(private readonly plans: PlanPolicyService) {}
+
+  assertCanActivateRaffle(org: OrgContext, tx: Tx): Promise<void> {
+    return this.plans.assertCanActivateRaffle(tx, org.id);
+  }
 }

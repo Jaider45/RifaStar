@@ -8,6 +8,7 @@ import { MailProvider } from '../auth/mail/mail.provider';
 import { invitationMail } from '../auth/mail/templates';
 import { UsersService } from '../auth/users.service';
 import { DatabaseService, type Tx } from '../database/database.service';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import type { OrgContext } from '../tenancy/org-context';
 import type { InviteMemberDto, UpdateMemberDto } from './organizations.dto';
 
@@ -32,7 +33,13 @@ export class TeamService {
     private readonly users: UsersService,
     private readonly audit: AuditService,
     private readonly mail: MailProvider,
+    private readonly plans: PlanPolicyService,
   ) {}
+
+  /** Vendedores (rol seller o código de vendedor) requieren la función del plan. */
+  private async assertSellers(org: OrgContext, roleKey: string, sellerCode: string | null | undefined) {
+    if (roleKey === 'seller' || sellerCode) await this.plans.assertFeature(org.id, 'sellers');
+  }
 
   list(org: OrgContext) {
     return this.db.tenantTx(org.id, (tx) =>
@@ -53,6 +60,8 @@ export class TeamService {
       if (existing && existing.status !== 'removed') {
         throw Errors.conflict('ALREADY_MEMBER', 'Esa persona ya está en tu equipo o tiene una invitación pendiente.');
       }
+      await this.assertSellers(org, role.key, dto.sellerCode);
+      await this.plans.assertCanAddMember(tx, org.id);
       const data = {
         roleId: role.id,
         status: 'invited' as const,
@@ -103,12 +112,14 @@ export class TeamService {
       let roleId = member.roleId;
       if (dto.roleId && dto.roleId !== member.roleId) {
         const role = await this.assignableRole(tx, org, dto.roleId);
+        await this.assertSellers(org, role.key, null);
         if (this.isOwnerRole(member.role)) {
           this.requireOwner(org);
           await this.ensureAnotherOwner(tx, member.id);
         }
         roleId = role.id;
       }
+      if (dto.sellerCode) await this.assertSellers(org, '', dto.sellerCode);
       const updated = await this.withSellerCodeCheck(() =>
         tx.member.update({
           where: { id: member.id },

@@ -3,6 +3,7 @@ import type { Organization } from '@prisma/client';
 import { AppError, Errors } from '../common/errors';
 import { requestContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import { verifyOrderToken } from '../orders/reservation.service';
 
 /**
@@ -12,7 +13,10 @@ import { verifyOrderToken } from '../orders/reservation.service';
  */
 @Injectable()
 export class PublicAccessService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly plans: PlanPolicyService,
+  ) {}
 
   async org(slug: string): Promise<Organization> {
     const org = await this.db.system.organization.findUnique({ where: { slug: slug.toLowerCase() } });
@@ -22,6 +26,16 @@ export class PublicAccessService {
     }
     requestContext.patch({ organizationId: org.id, actor: { type: 'participant', id: null } });
     return org;
+  }
+
+  async byDomain(host: string): Promise<{ slug: string; name: string }> {
+    const org = await this.db.system.organization.findFirst({
+      where: { customDomain: host.toLowerCase().replace(/:\d+$/, ''), customDomainVerifiedAt: { not: null } },
+    });
+    if (!org || org.status === 'suspended' || !(await this.plans.hasFeature(org.id, 'customDomain'))) {
+      throw Errors.notFound('la organización');
+    }
+    return { slug: org.slug, name: org.name };
   }
 
   /** Valida el token de la orden. Responde 404 tanto si no existe como si el token no coincide. */

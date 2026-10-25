@@ -8,6 +8,7 @@ import { normalizePhone } from '../common/phone';
 import { DatabaseService, type Tx } from '../database/database.service';
 import { attachReferral, upsertParticipant } from '../participants/participants.service';
 import { presentPaymentAccount } from '../payment-accounts/payment-accounts';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import { SettingsService } from '../settings/settings.service';
 import type { ReserveInput } from './orders.dto';
 
@@ -40,6 +41,7 @@ export class ReservationService {
   constructor(
     private readonly db: DatabaseService,
     private readonly settings: SettingsService,
+    private readonly plans: PlanPolicyService,
   ) {}
 
   async reserve(organizationId: string, raffleSlug: string, input: ReserveInput, idempotencyKey?: string) {
@@ -78,7 +80,7 @@ export class ReservationService {
 
       const payments = await this.settings.read(tx, 'payments');
       const reservedUntil = new Date(Date.now() + payments.data.reservationMinutes * 60_000);
-      const seller = input.sellerCode
+      const seller = input.sellerCode && (await this.plans.hasFeature(organizationId, 'sellers'))
         ? await tx.member.findFirst({ where: { sellerCode: input.sellerCode.toUpperCase(), status: 'active' }, select: { id: true, sellerCode: true } })
         : null;
       const participantId = await upsertParticipant(tx, organizationId, { phone, name: input.name, nickname: input.nickname });

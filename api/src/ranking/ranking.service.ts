@@ -7,6 +7,7 @@ import { requestContext } from '../common/request-context';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService, type Tx } from '../database/database.service';
 import { type OrderEvent, OrderHooks } from '../orders/order-hooks';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import { csvCell, ParticipantsService } from '../participants/participants.service';
 import type { RankingSettings } from '../settings/schemas';
 import { SettingsService } from '../settings/settings.service';
@@ -50,6 +51,7 @@ export class RankingService implements OnModuleInit {
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
     private readonly hooks: OrderHooks,
+    private readonly plans: PlanPolicyService,
   ) {}
 
   onModuleInit(): void {
@@ -492,8 +494,7 @@ export class RankingService implements OnModuleInit {
     };
   }
 
-  /** La fase 6 conecta aquí el flag `ranking` del plan. */
-  protected async planAllowsRanking(_tx: Tx, _organizationId: string): Promise<boolean> {
-    return true;
+  private planAllowsRanking(_tx: Tx, organizationId: string): Promise<boolean> {
+    return this.plans.hasFeature(organizationId, 'ranking');
   }
 }

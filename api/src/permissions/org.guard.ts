@@ -111,6 +111,7 @@ export class OrgGuard implements CanActivate {
 
     req.org = ctx;
     requestContext.patch({ organizationId: org.id });
+    res.setHeader('X-Account-Status', org.status);
 
     if (ctx.readOnly) {
       await this.db.system.auditLog.create({

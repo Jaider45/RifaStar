@@ -7,6 +7,7 @@ import { DatabaseService } from '../database/database.service';
 import { upsertParticipant } from '../participants/participants.service';
 import { presentPaymentAccount } from '../payment-accounts/payment-accounts';
 import { prizeRuleLabel } from '../raffles/prize-rules';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import { SettingsService } from '../settings/settings.service';
 import { StorageProvider } from '../storage/storage.provider';
 import { encodeAvailable1b, encodeGrid2b } from './grid-encoding';
@@ -17,6 +18,7 @@ export class PublicRafflesService {
     private readonly db: DatabaseService,
     private readonly storage: StorageProvider,
     private readonly settings: SettingsService,
+    private readonly plans: PlanPolicyService,
   ) {}
 
   async raffle(org: Organization, raffleSlug: string) {
@@ -31,6 +33,7 @@ export class PublicRafflesService {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       });
       const branding = await this.settings.read(tx, 'branding');
+      const whiteLabel = await this.plans.hasFeature(org.id, 'whiteLabel');
       const available = r.totalNumbers - r.paidCount - r.heldCount;
       return {
         organization: {
@@ -38,7 +41,7 @@ export class PublicRafflesService {
           slug: org.slug,
           supportWhatsapp: org.supportWhatsapp,
           logoUrl: org.logoKey ? await this.storage.signedGetUrl(org.logoKey, 3600) : null,
-          showRifaStarBadge: !branding.data.hideRifaStarBadge,
+          showRifaStarBadge: !(branding.data.hideRifaStarBadge && whiteLabel),
         },
         raffle: {
           slug: r.slug,

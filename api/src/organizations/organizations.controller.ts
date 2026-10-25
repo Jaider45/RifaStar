@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ORG_PERMISSIONS } from '../permissions/catalog';
+import { RequireFeature } from '../plans/plan.guard';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
 import type { OrgContext } from '../tenancy/org-context';
 import { UploadConfirmDto, UploadRequestDto } from '../raffles/raffles.dto';
-import { CreateRoleDto, InviteMemberDto, UpdateMemberDto, UpdateOrganizationDto, UpdateRoleDto } from './organizations.dto';
+import { CreateRoleDto, CustomDomainDto, InviteMemberDto, UpdateMemberDto, UpdateOrganizationDto, UpdateRoleDto } from './organizations.dto';
 import { OrganizationService } from './organization.service';
 import { RolesService } from './roles.service';
 import { TeamService } from './team.service';
@@ -24,6 +25,13 @@ export class OrganizationController {
   @RequirePermission('settings.brand')
   update(@CurrentOrg() org: OrgContext, @Body() dto: UpdateOrganizationDto) {
     return this.orgs.update(org, dto);
+  }
+
+  @Put('custom-domain')
+  @RequirePermission('settings.brand')
+  @RequireFeature('customDomain')
+  customDomain(@CurrentOrg() org: OrgContext, @Body() dto: CustomDomainDto) {
+    return this.orgs.setCustomDomain(org, dto.domain);
   }
 
   @Post('logo')
@@ -92,12 +100,14 @@ export class RolesController {
 
   @Post()
   @RequirePermission('settings.team')
+  @RequireFeature('customRoles')
   create(@CurrentOrg() org: OrgContext, @Body() dto: CreateRoleDto) {
     return this.roles.create(org, dto);
   }
 
   @Patch(':id')
   @RequirePermission('settings.team')
+  @RequireFeature('customRoles')
   update(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateRoleDto) {
     return this.roles.update(org, id, dto);
   }

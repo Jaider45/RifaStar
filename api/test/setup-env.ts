@@ -17,6 +17,7 @@ const defaults: Record<string, string> = {
   WHATSAPP_APP_SECRET: 'test-whatsapp-app-secret',
   WHATSAPP_VERIFY_TOKEN: 'test-verify-token',
   BILLING_DRIVER: 'fake',
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
   PUBLIC_BASE_URL: 'http://localhost:5173',
   LOG_LEVEL: 'silent',
 };

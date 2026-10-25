@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
+import { RequireFeature } from '../plans/plan.guard';
 import type { OrgContext } from '../tenancy/org-context';
 import { ListOrdersQuery, QueueQuery, ReasonDto, SalesQuery } from './orders.dto';
 import { OrdersService } from './orders.service';
@@ -52,6 +53,7 @@ export class OrdersController {
 
   @Get('sales/mine')
   @RequirePermission('sales.view_own')
+  @RequireFeature('sellers')
   salesMine(@CurrentOrg() org: OrgContext, @Query() query: SalesQuery) {
     return this.orders.salesMine(org, query);
   }

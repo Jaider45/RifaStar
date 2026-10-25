@@ -37,6 +37,14 @@ export class PublicController {
     private readonly ranking: RankingService,
   ) {}
 
+  /** Dominio propio → organización (para que el frontend sirva rifas.tunegocio.com). */
+  @Get('domains/:host')
+  @RateLimit({ name: 'pub-domain', by: ['ip'], limit: 120, windowSeconds: 60 })
+  async domain(@Param('host') host: string, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return this.access.byDomain(host);
+  }
+
   @Get('orgs/:orgSlug/ranking')
   @RateLimit({ name: 'pub-ranking', by: ['ip'], limit: 120, windowSeconds: 60 })
   async rankingPublic(@Param('orgSlug') orgSlug: string, @Query() query: RankingQuery, @Res({ passthrough: true }) res: Response) {

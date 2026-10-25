@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { Errors } from '../common/errors';
 import { normalizePhone } from '../common/phone';
 import { IMAGE_TYPES, MB } from '../storage/file-type';
 import { StorageProvider } from '../storage/storage.provider';
@@ -35,6 +37,22 @@ export class OrganizationService {
   async get(org: OrgContext) {
     const row = await this.db.tenantTx(org.id, (tx) => tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: PUBLIC_FIELDS }));
     return { ...row, logoUrl: row.logoKey ? await this.storage.signedGetUrl(row.logoKey, 3600) : null };
+  }
+
+  async setCustomDomain(org: OrgContext, domain: string | null) {
+    try {
+      await this.db.tenantTx(org.id, async (tx) => {
+        const before = await tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: { customDomain: true } });
+        await tx.organization.update({ where: { id: org.id }, data: { customDomain: domain, customDomainVerifiedAt: null } });
+        await this.audit.record(tx, { action: 'organization.custom_domain', entityType: 'organization', entityId: org.id, before, after: { customDomain: domain } });
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw Errors.conflict('DOMAIN_TAKEN', 'Ese dominio ya está en uso.');
+      }
+      throw err;
+    }
+    return this.get(org);
   }
 
   private logoPolicy(orgId: string): UploadPolicy {

@@ -3,6 +3,7 @@ import { Prisma, type SettingsSection } from '@prisma/client';
 import { Errors } from '../common/errors';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService, type Tx } from '../database/database.service';
+import { PlanPolicyService } from '../plans/plan-policy.service';
 import type { OrgContext } from '../tenancy/org-context';
 import {
   CURRENT_SETTINGS_VERSION,
@@ -24,6 +25,7 @@ export class SettingsService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    private readonly plans: PlanPolicyService,
   ) {}
 
   /** Lee una sección dentro de una transacción del tenant (con valores por defecto si no existe). */
@@ -54,7 +56,7 @@ export class SettingsService {
       throw Errors.validation(parsed.error.issues.map((i) => ({ path: ['data', ...i.path], message: i.message })));
     }
     const data = parsed.data as Prisma.InputJsonValue;
-    return this.db.tenantTx(org.id, async (tx) => {
+    return this.withPlanChecks(org, section, parsed.data).then(() => this.db.tenantTx(org.id, async (tx) => {
       const before = await this.read(tx, section);
       if (before.revision !== revision) throw Errors.revisionConflict({ currentRevision: before.revision });
       if (before.revision === 0) {
@@ -76,6 +78,13 @@ export class SettingsService {
         after: data,
       });
       return { section, revision: before.revision + 1, data: parsed.data as SettingsBySection[S] };
-    });
+    }));
+  }
+
+  private async withPlanChecks(org: OrgContext, section: SettingsSection, data: unknown): Promise<void> {
+    if (section === 'ranking' && (data as { enabled: boolean }).enabled) await this.plans.assertFeature(org.id, 'ranking');
+    if (section === 'branding' && (data as { hideRifaStarBadge: boolean }).hideRifaStarBadge) {
+      await this.plans.assertFeature(org.id, 'whiteLabel');
+    }
   }
 }

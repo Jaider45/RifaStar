@@ -97,3 +97,20 @@ export function cookieValue(res: { headers: Record<string, unknown> }, name: str
   }
   return undefined;
 }
+
+/** Usuario de plataforma con 2FA ya configurado y su token de sesión. */
+export async function platformUser(ctx: TestContext, role: 'super_admin' | 'support' | 'finance' = 'super_admin') {
+  const { PasswordService } = await import('../src/auth/password.service');
+  const user = await ctx.db.system.platformUser.create({
+    data: {
+      email: `p-${uid()}@rifastar.co`,
+      name: `Equipo ${role}`,
+      role,
+      passwordHash: await ctx.app.get(PasswordService).hash(TEST_PASSWORD),
+      totpEnabledAt: new Date(),
+    },
+  });
+  return { user, token: ctx.tokens.signAccess({ typ: 'platform', sub: user.id, role }) };
+}
+
+export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
