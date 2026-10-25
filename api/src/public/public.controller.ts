@@ -8,6 +8,7 @@ import { ReceiptConfirmDto, ReceiptRequestDto, ReserveDto } from '../orders/orde
 import { OrdersService } from '../orders/orders.service';
 import { ReservationService } from '../orders/reservation.service';
 import { RateLimit } from '../rate-limit/rate-limit';
+import { ResultsService } from '../results/results.service';
 import { PublicAccessService } from './public-access.service';
 import { PublicRafflesService } from './public-raffles.service';
 
@@ -27,7 +28,16 @@ export class PublicController {
     private readonly raffles: PublicRafflesService,
     private readonly reservations: ReservationService,
     private readonly orders: OrdersService,
+    private readonly results: ResultsService,
   ) {}
+
+  @Get('orgs/:orgSlug/raffles/:raffleSlug/results')
+  @RateLimit({ name: 'pub-results', by: ['ip'], limit: 120, windowSeconds: 60 })
+  async raffleResults(@Param('orgSlug') orgSlug: string, @Param('raffleSlug') raffleSlug: string, @Res({ passthrough: true }) res: Response) {
+    const org = await this.access.org(orgSlug);
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    return this.results.publicResults(org.id, raffleSlug, org.timezone);
+  }
 
   @Get('orgs/:orgSlug/raffles/:raffleSlug')
   @RateLimit({ name: 'pub-raffle', by: ['ip'], limit: 120, windowSeconds: 60 })

@@ -26,6 +26,7 @@ import { ParticipantsModule } from './participants/participants.module';
 import { PaymentAccountsModule } from './payment-accounts/payment-accounts';
 import { PublicModule } from './public/public.module';
 import { RafflesModule } from './raffles/raffles.module';
+import { ResultsModule } from './results/results.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { StorageModule } from './storage/storage.module';
     RafflesModule,
     ParticipantsModule,
     OrdersModule,
+    ResultsModule,
     PublicModule,
     DashboardModule,
     MaintenanceModule,

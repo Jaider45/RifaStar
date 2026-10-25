@@ -1,14 +1,13 @@
-import type { PrizeRule } from '@prisma/client';
+import { PrizeRule } from '@prisma/client';
+import { ruleAppliesTo } from '../results/winner-rules';
 
-/**
- * Reglas permitidas según las cifras del sorteo (P3: coincidencia exacta).
- * En 2 cifras se compara contra un par del resultado; en 3 y 4, contra el
- * número completo correspondiente.
- */
+const ALL_RULES = Object.values(PrizeRule);
+
+/** Reglas permitidas según las cifras del sorteo (P3), derivadas del módulo de ganadores. */
 export const RULES_BY_DIGITS: Record<2 | 3 | 4, readonly PrizeRule[]> = {
-  2: ['last_two', 'first_two', 'middle_two', 'digits_1_and_4', 'anticipated_last_two', 'custom'],
-  3: ['last_three', 'first_three', 'anticipated_full_number', 'custom'],
-  4: ['full_number', 'anticipated_full_number', 'custom'],
+  2: ALL_RULES.filter((r) => ruleAppliesTo(r, 2)),
+  3: ALL_RULES.filter((r) => ruleAppliesTo(r, 3)),
+  4: ALL_RULES.filter((r) => ruleAppliesTo(r, 4)),
 };
 
 export const ANTICIPATED_RULES: ReadonlySet<PrizeRule> = new Set(['anticipated_last_two', 'anticipated_full_number']);
