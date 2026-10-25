@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { ORG_PERMISSIONS } from '../permissions/catalog';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
 import type { OrgContext } from '../tenancy/org-context';
+import { UploadConfirmDto, UploadRequestDto } from '../raffles/raffles.dto';
 import { CreateRoleDto, InviteMemberDto, UpdateMemberDto, UpdateOrganizationDto, UpdateRoleDto } from './organizations.dto';
 import { OrganizationService } from './organization.service';
 import { RolesService } from './roles.service';
@@ -23,6 +24,18 @@ export class OrganizationController {
   @RequirePermission('settings.brand')
   update(@CurrentOrg() org: OrgContext, @Body() dto: UpdateOrganizationDto) {
     return this.orgs.update(org, dto);
+  }
+
+  @Post('logo')
+  @RequirePermission('settings.brand')
+  logo(@CurrentOrg() org: OrgContext, @Body() dto: UploadRequestDto) {
+    return this.orgs.logoUpload(org, dto.contentType, dto.size);
+  }
+
+  @Post('logo/confirm')
+  @RequirePermission('settings.brand')
+  logoConfirm(@CurrentOrg() org: OrgContext, @Body() dto: UploadConfirmDto) {
+    return this.orgs.logoConfirm(org, dto.key);
   }
 }
 

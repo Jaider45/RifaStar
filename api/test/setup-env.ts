@@ -11,6 +11,7 @@ const defaults: Record<string, string> = {
   HASH_PEPPER: 'test-pepper',
   COOKIE_SECURE: 'false',
   MAIL_DRIVER: 'fake',
+  STORAGE_DRIVER: 'fake',
   MESSAGING_DRIVER: 'fake',
   BILLING_DRIVER: 'fake',
   PUBLIC_BASE_URL: 'http://localhost:5173',

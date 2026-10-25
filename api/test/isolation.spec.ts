@@ -46,9 +46,9 @@ describe('Aislamiento entre organizaciones', () => {
     });
   });
 
-  describe('RLS en Postgres (segunda barrera)', () => {
+  describe('Barreras de aislamiento en la base de datos', () => {
     it('con app.org_id = A solo se ven filas de A, aunque la consulta no filtre', async () => {
-      await ctx.db.tenantTx(a.org.id, async (tx) => {
+      await rlsOnly(a.org.id, async (tx) => {
         const members = await tx.member.findMany();
         expect(members.every((m) => m.organizationId === a.org.id)).toBe(true);
         const orgs = await tx.organization.findMany();
@@ -68,15 +68,38 @@ describe('Aislamiento entre organizaciones', () => {
       expect(await ctx.db.app.orgSettings.count()).toBe(0);
     });
 
-    it('no se pueden escribir filas de otra organización', async () => {
-      const ownerRole = await ctx.db.system.role.findFirstOrThrow({ where: { key: 'admin', organizationId: null } });
+    /** Transacción con app.org_id pero SIN el filtro de Prisma: prueba RLS sola. */
+    const rlsOnly = <T>(orgId: string, fn: (tx: Parameters<Parameters<TestContext['db']['app']['$transaction']>[0]>[0]) => Promise<T>) =>
+      ctx.db.app.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT set_config('app.org_id', ${orgId}, true)`;
+        return fn(tx);
+      });
+
+    it('primera barrera: el filtro de Prisma impide escribir en otra organización', async () => {
+      const role = await ctx.db.system.role.findFirstOrThrow({ where: { key: 'admin', organizationId: null } });
       await expect(
         ctx.db.tenantTx(a.org.id, (tx) =>
-          tx.member.create({ data: { organizationId: b.org.id, userId: a.owner.id, roleId: ownerRole.id, status: 'active' } }),
+          tx.member.create({ data: { organizationId: b.org.id, userId: a.owner.id, roleId: role.id, status: 'active' } }),
+        ),
+      ).rejects.toThrow(/otra organización/);
+      const memberOfB = await ctx.db.system.member.findFirstOrThrow({ where: { organizationId: b.org.id } });
+      const found = await ctx.db.tenantTx(a.org.id, (tx) => tx.member.findUnique({ where: { id: memberOfB.id } }));
+      expect(found).toBeNull();
+    });
+
+    it('segunda barrera: RLS bloquea aunque la consulta no filtre por organización', async () => {
+      const role = await ctx.db.system.role.findFirstOrThrow({ where: { key: 'admin', organizationId: null } });
+      await expect(
+        rlsOnly(a.org.id, (tx) =>
+          tx.member.create({ data: { organizationId: b.org.id, userId: a.owner.id, roleId: role.id, status: 'active' } }),
         ),
       ).rejects.toThrow(/row-level security/);
 
-      const updated = await ctx.db.tenantTx(a.org.id, (tx) =>
+      const members = await rlsOnly(a.org.id, (tx) => tx.member.findMany());
+      expect(members.length).toBeGreaterThan(0);
+      expect(members.every((m) => m.organizationId === a.org.id)).toBe(true);
+
+      const updated = await rlsOnly(a.org.id, (tx) =>
         tx.organization.updateMany({ where: { id: b.org.id }, data: { name: 'Cambio cruzado' } }),
       );
       expect(updated.count).toBe(0);

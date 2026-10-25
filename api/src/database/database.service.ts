@@ -1,6 +1,7 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { env } from '../config/env';
+import { tenantExtension } from './tenant-extension';
 
 export type Tx = Prisma.TransactionClient;
 
@@ -28,12 +29,16 @@ export class DatabaseService implements OnModuleDestroy {
     this.system = new PrismaClient({ datasourceUrl: env().SYSTEM_DATABASE_URL });
   }
 
-  /** Ejecuta `fn` en una transacción con RLS para la organización dada. */
+  /**
+   * Ejecuta `fn` en una transacción de la organización: Prisma agrega el filtro
+   * `organizationId` a cada consulta (tenant-extension) y Postgres aplica RLS
+   * con `app.org_id`.
+   */
   tenantTx<T>(organizationId: string, fn: (tx: Tx) => Promise<T>, opts: TxOptions = {}): Promise<T> {
-    return this.app.$transaction(
+    return this.app.$extends(tenantExtension(organizationId)).$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT set_config('app.org_id', ${organizationId}, true)`;
-        return fn(tx);
+        return fn(tx as unknown as Tx);
       },
       {
         isolationLevel: opts.isolationLevel ?? Prisma.TransactionIsolationLevel.ReadCommitted,

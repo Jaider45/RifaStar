@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { normalizePhone } from '../common/phone';
+import { IMAGE_TYPES, MB } from '../storage/file-type';
+import { StorageProvider } from '../storage/storage.provider';
+import { type UploadPolicy, UploadsService } from '../storage/uploads.service';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService } from '../database/database.service';
 import type { OrgContext } from '../tenancy/org-context';
@@ -25,10 +28,33 @@ export class OrganizationService {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadsService,
+    private readonly storage: StorageProvider,
   ) {}
 
-  get(org: OrgContext) {
-    return this.db.tenantTx(org.id, (tx) => tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: PUBLIC_FIELDS }));
+  async get(org: OrgContext) {
+    const row = await this.db.tenantTx(org.id, (tx) => tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: PUBLIC_FIELDS }));
+    return { ...row, logoUrl: row.logoKey ? await this.storage.signedGetUrl(row.logoKey, 3600) : null };
+  }
+
+  private logoPolicy(orgId: string): UploadPolicy {
+    return { prefix: `logos/${orgId}/`, allowed: IMAGE_TYPES, maxBytes: 2 * MB, label: 'el logo' };
+  }
+
+  logoUpload(org: OrgContext, contentType: string, size: number) {
+    return this.uploads.presign(this.logoPolicy(org.id), contentType, size);
+  }
+
+  async logoConfirm(org: OrgContext, key: string) {
+    const file = await this.uploads.verify(this.logoPolicy(org.id), key);
+    const previous = await this.db.tenantTx(org.id, async (tx) => {
+      const before = await tx.organization.findUniqueOrThrow({ where: { id: org.id }, select: { logoKey: true } });
+      await tx.organization.update({ where: { id: org.id }, data: { logoKey: file.key } });
+      await this.audit.record(tx, { action: 'organization.logo_update', entityType: 'organization', entityId: org.id });
+      return before.logoKey;
+    });
+    if (previous && previous !== file.key) await this.storage.remove(previous).catch(() => undefined);
+    return this.get(org);
   }
 
   update(org: OrgContext, dto: UpdateOrganizationDto) {

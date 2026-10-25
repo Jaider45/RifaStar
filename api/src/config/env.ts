@@ -25,7 +25,10 @@ const EnvSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   COOKIE_SECURE: bool.default(true),
 
+  STORAGE_DRIVER: z.enum(['s3', 'fake']).default('s3'),
   S3_ENDPOINT: z.string().optional(),
+  /** Endpoint con el que el navegador sube y descarga (en Docker difiere del interno). */
+  S3_PUBLIC_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
   S3_BUCKET: z.string().default('rifastar'),
   S3_ACCESS_KEY: z.string().default(''),

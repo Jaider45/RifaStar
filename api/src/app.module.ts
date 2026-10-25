@@ -18,6 +18,15 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { RedisModule } from './redis/redis.module';
 import { SettingsModule } from './settings/settings.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { DashboardModule } from './dashboard/dashboard';
+import { JobsModule } from './jobs/jobs.module';
+import { MaintenanceModule } from './jobs/maintenance.module';
+import { OrdersModule } from './orders/orders.module';
+import { ParticipantsModule } from './participants/participants.module';
+import { PaymentAccountsModule } from './payment-accounts/payment-accounts';
+import { PublicModule } from './public/public.module';
+import { RafflesModule } from './raffles/raffles.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -30,7 +39,16 @@ import { TenancyModule } from './tenancy/tenancy.module';
     TenancyModule,
     AuthModule,
     SettingsModule,
+    StorageModule,
+    JobsModule,
     OrganizationsModule,
+    PaymentAccountsModule,
+    RafflesModule,
+    ParticipantsModule,
+    OrdersModule,
+    PublicModule,
+    DashboardModule,
+    MaintenanceModule,
   ],
   controllers: [HealthController],
   providers: [
