@@ -88,7 +88,7 @@ export default function Pago() {
   const { raffle: r, organization } = raffle.data;
   const cifras = r.digits;
   const o = order.data;
-  const primerNombre = organization.name.split(' ')[0];
+  const nombreOrg = organization.name;
 
   const nuevaCompra = () => {
     clearOrder(org, sorteo);
@@ -214,7 +214,7 @@ export default function Pago() {
               {ok
                 ? 'Tus boletos ya están en «Mis boletos». También te los enviamos por WhatsApp.'
                 : espera
-                  ? `${primerNombre} revisa el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.`
+                  ? `${nombreOrg} revisa el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.`
                   : o.status === 'rejected'
                     ? `Motivo: ${o.rejectionReason}. Tus números quedaron libres.`
                     : 'Los números se liberaron. Puedes volver a elegirlos si siguen libres.'}
@@ -317,7 +317,7 @@ export default function Pago() {
           <button type="button" className="rs-btn rs-btn--primario boton-ancho" disabled={busy || (o.requireReceipt && !archivo)} onClick={enviar}>
             {busy ? 'Enviando…' : archivo ? 'Enviar comprobante' : 'Ya pagué'}
           </button>
-          <p className="texto-pie">{primerNombre} verifica el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.</p>
+          <p className="texto-pie">{nombreOrg} verifica el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.</p>
         </section>
       </main>
     </PubFrame>

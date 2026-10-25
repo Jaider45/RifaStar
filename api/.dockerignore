@@ -2,3 +2,5 @@ node_modules
 dist
 .env
 coverage
+dump.rdb
+*.log

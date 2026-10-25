@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { copy, Empty, ErrorNote, Loading } from '@/components/ui';
 import { useSession } from '@/api/session';
 import { cop, pad } from '@/lib/format';
-import { formatDraw, formatTime } from '@/lib/time';
+import { formatDay, formatDraw, formatTime } from '@/lib/time';
 import { useCountdown } from '@/lib/useCountdown';
 import './Sorteos.css';
 
@@ -75,7 +75,7 @@ export default function Sorteos() {
         title={`Hola, ${primerNombre}`}
         sub={
           d
-            ? `Tienes ${d.pendingPayments} ${d.pendingPayments === 1 ? 'pago' : 'pagos'} por verificar${next ? ` y tu próximo sorteo juega el ${formatDraw(next.drawAt, tz)}` : ''}.`
+            ? `Tienes ${d.pendingPayments} ${d.pendingPayments === 1 ? 'pago' : 'pagos'} por verificar${next ? ` y tu próximo sorteo juega el ${formatDraw(next.drawAt, tz)}` : ''}`.replace(/\.?$/, '.')
             : 'Resumen de tus sorteos.'
         }
         actions={
@@ -164,7 +164,7 @@ export default function Sorteos() {
                           </div>
                         </div>
                       </td>
-                      <td>{formatDraw(r.drawAt, tz)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDay(r.drawAt, tz)}<br /><span className="cell-sub">{formatTime(r.drawAt, tz)}</span></td>
                       <td>
                         <div className="rs-progreso" style={{ height: 8 }}>
                           <span style={{ width: `${pct}%` }} />

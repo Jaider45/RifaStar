@@ -106,3 +106,25 @@ export async function downloadFile(path: string, filename: string, opts: Request
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Pista de que este navegador tiene una sesión: evita pedir /refresh (y un 401 en consola)
+ * a quien nunca inició sesión. Sin almacenamiento disponible, se intenta siempre.
+ */
+export const sessionHint = {
+  has: (key: string) => {
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch {
+      return true;
+    }
+  },
+  set: (key: string, on: boolean) => {
+    try {
+      if (on) localStorage.setItem(key, '1');
+      else localStorage.removeItem(key);
+    } catch {
+      /* sin almacenamiento */
+    }
+  },
+};

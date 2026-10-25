@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { request, type RequestOptions } from './client';
+import { ApiError, request, sessionHint, type RequestOptions } from './client';
+
+const HINT_KEY = 'rs_platform_session';
 
 export interface PlatformMe {
   id: string;
@@ -29,12 +31,21 @@ export function PlatformSessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<PlatformState['status']>('loading');
   const [me, setMe] = useState<PlatformMe | null>(null);
   const token = useRef<string | null>(null);
+  const setToken = (t: string | null) => {
+    token.current = t;
+    sessionHint.set(HINT_KEY, Boolean(t));
+    return t;
+  };
   const refreshing = useRef<Promise<string | null> | null>(null);
 
   const refresh = useCallback((): Promise<string | null> => {
     refreshing.current ??= request<{ accessToken: string }>('/v1/platform/auth/refresh', { method: 'POST' })
-      .then((r) => (token.current = r.accessToken))
-      .catch(() => (token.current = null))
+      .then((r) => setToken(r.accessToken))
+      .catch((err) => {
+        token.current = null;
+        if (err instanceof ApiError) sessionHint.set(HINT_KEY, false);
+        return null;
+      })
       .finally(() => (refreshing.current = null));
     return refreshing.current;
   }, []);
@@ -45,6 +56,10 @@ export function PlatformSessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
+    if (!sessionHint.has(HINT_KEY)) {
+      setStatus('anon');
+      return;
+    }
     refresh().then((t) => (t ? loadMe().catch(() => setStatus('anon')) : setStatus('anon')));
   }, [refresh, loadMe]);
 
@@ -56,12 +71,12 @@ export function PlatformSessionProvider({ children }: { children: ReactNode }) {
       enroll: (challengeToken) => request('/v1/platform/auth/2fa/enroll', { body: { challengeToken } }),
       verify: async (challengeToken, code) => {
         const r = await request<{ accessToken: string }>('/v1/platform/auth/2fa/verify', { body: { challengeToken, code } });
-        token.current = r.accessToken;
+        setToken(r.accessToken);
         await loadMe();
       },
       logout: async () => {
         await request('/v1/platform/auth/logout', { method: 'POST' }).catch(() => undefined);
-        token.current = null;
+        setToken(null);
         setMe(null);
         setStatus('anon');
       },

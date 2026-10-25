@@ -6,8 +6,10 @@ import 'reflect-metadata';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildOpenApi, createApp } from './app.factory';
+import { loadDotEnv } from './config/env';
 
 async function main() {
+  loadDotEnv();
   const app = await createApp();
   await app.init();
   const doc = buildOpenApi(app);

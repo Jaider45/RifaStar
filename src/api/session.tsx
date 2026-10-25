@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ApiError, request, type RequestOptions } from './client';
+import { ApiError, request, sessionHint, type RequestOptions } from './client';
 import type { Me } from './types';
+
+const HINT_KEY = 'rs_session';
 
 /** Sesión de soporte de la plataforma (solo lectura) guardada para el panel. */
 export interface SupportSession {
@@ -59,6 +61,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [supportActiveUntil, setSupportActiveUntil] = useState<string | null>(null);
   const [accountStatus, setAccountStatus] = useState<string | null>(null);
   const token = useRef<string | null>(null);
+  const setToken = (t: string | null) => {
+    token.current = t;
+    sessionHint.set(HINT_KEY, Boolean(t));
+    return t;
+  };
   const refreshing = useRef<Promise<string | null> | null>(null);
 
   const readHeaders = useCallback((res: Response) => {
@@ -70,8 +77,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback((): Promise<string | null> => {
     refreshing.current ??= request<{ accessToken: string }>('/v1/auth/refresh', { method: 'POST' })
-      .then((r) => (token.current = r.accessToken))
-      .catch(() => (token.current = null))
+      .then((r) => setToken(r.accessToken))
+      .catch((err) => {
+        token.current = null;
+        if (err instanceof ApiError) sessionHint.set(HINT_KEY, false);
+        return null;
+      })
       .finally(() => (refreshing.current = null));
     return refreshing.current;
   }, []);
@@ -93,6 +104,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setStatus('support');
       return;
     }
+    if (!sessionHint.has(HINT_KEY)) {
+      setStatus('anon');
+      return;
+    }
     refresh().then((t) => (t ? loadMe().catch(() => setStatus('anon')) : setStatus('anon')));
   }, [support, refresh, loadMe]);
 
@@ -112,18 +127,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       login: async (email, password, totpCode) => {
         const r = await request<{ accessToken: string }>('/v1/auth/login', { body: { email, password, totpCode } });
-        token.current = r.accessToken;
+        setToken(r.accessToken);
         await loadMe();
       },
       signup: async (input) => {
         const r = await request<{ accessToken: string; organizationId: string }>('/v1/auth/signup', { body: input });
-        token.current = r.accessToken;
+        setToken(r.accessToken);
         localStorage.setItem(ORG_KEY, r.organizationId);
         setActiveOrgId(r.organizationId);
         await loadMe();
       },
       acceptSession: async (accessToken, organizationId) => {
-        token.current = accessToken;
+        setToken(accessToken);
         if (organizationId) {
           localStorage.setItem(ORG_KEY, organizationId);
           setActiveOrgId(organizationId);
@@ -132,7 +147,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       },
       logout: async () => {
         await request('/v1/auth/logout', { method: 'POST' }).catch(() => undefined);
-        token.current = null;
+        setToken(null);
         setMe(null);
         setStatus('anon');
       },

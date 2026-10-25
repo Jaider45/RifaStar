@@ -2892,6 +2892,29 @@
         ]
       }
     },
+    "/v1/public/orgs/{orgSlug}": {
+      "get": {
+        "operationId": "PublicController_organization",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
     "/v1/public/orgs/{orgSlug}/raffles/{raffleSlug}": {
       "get": {
         "operationId": "PublicController_raffle",
@@ -3291,6 +3314,35 @@
     "/v1/billing": {
       "get": {
         "operationId": "BillingController_overview",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/plans": {
+      "get": {
+        "operationId": "BillingController_plans",
         "parameters": [
           {
             "name": "X-Organization-Id",
@@ -3906,6 +3958,25 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/permission-catalog": {
+      "get": {
+        "operationId": "PlatformAdminController_permissionCatalog",
+        "parameters": [],
         "responses": {
           "200": {
             "description": ""

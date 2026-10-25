@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { z } from 'zod';
 
 const bool = z
@@ -56,6 +57,14 @@ const EnvSchema = z.object({
 export type Env = z.infer<typeof EnvSchema>;
 
 let cached: Env | undefined;
+
+/**
+ * Carga `.env` (si existe) sin pisar variables ya definidas. Se llama al inicio de cada
+ * proceso; en producción no hay archivo y manda el entorno del contenedor.
+ */
+export function loadDotEnv(path = '.env'): void {
+  if (existsSync(path)) process.loadEnvFile(path);
+}
 
 /** Variables de entorno validadas. Falla al arrancar si falta algo. */
 export function env(): Env {

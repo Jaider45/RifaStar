@@ -42,7 +42,7 @@ export function AdminLayout() {
     <div className="rs-claro">
       {session.support && (
         <div className="aviso-soporte" role="status">
-          Estás viendo «{session.support.organizationName}» como soporte, en modo lectura, hasta las {formatTime(session.support.expiresAt)}.
+          Estás viendo «{session.support.organizationName}» como soporte, en modo lectura, hasta las {formatTime(session.support.expiresAt)}
           <button
             type="button"
             className="rs-btn rs-btn--secundario rs-btn--sm"
@@ -57,7 +57,7 @@ export function AdminLayout() {
       )}
       {!session.support && session.supportActiveUntil && (
         <div className="aviso-soporte" role="status">
-          El equipo de soporte de Rifa Star está revisando tu cuenta (solo lectura) hasta las {formatTime(session.supportActiveUntil)}.
+          El equipo de soporte de Rifa Star está revisando tu cuenta (solo lectura) hasta las {formatTime(session.supportActiveUntil)}
         </div>
       )}
       {status === 'past_due' && (

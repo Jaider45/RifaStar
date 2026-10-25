@@ -124,7 +124,7 @@ export default function Ganador() {
   return (
     <>
       <PageHeader
-        crumb={{ to: '/admin', label: `${r?.title ?? 'Sorteo'}${r ? ` · ${formatDay(r.drawAt, tz)}` : ''} /` }}
+        crumb={{ to: '/admin', label: `${r?.title ?? 'Sorteo'}${r ? ` · ${formatDay(r.drawAt, tz)}` : ''}` }}
         title="Anunciar ganadores"
         sub="Escribe el resultado de la lotería. Rifa Star calcula los ganadores de cada premio con los números pagos."
         actions={

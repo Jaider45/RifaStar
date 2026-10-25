@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (lint, tipos, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rifastar
+          POSTGRES_PASSWORD: rifastar
+          POSTGRES_DB: rifastar_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rifastar"
+          --health-interval 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      # Roles de la app (sin BYPASSRLS) y del sistema; las migraciones otorgan los permisos.
+      - run: psql "postgresql://rifastar:rifastar@localhost:5432/rifastar_test" -v ON_ERROR_STOP=1 -f docker/postgres/01-roles.sql
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # El contrato publicado debe estar al día con el código.
+      - name: OpenAPI al día
+        run: |
+          cp .env.example .env
+          node dist/openapi-export.js
+          git diff --exit-code -- openapi.json || (echo "::error::openapi.json desactualizado: corre «npm run openapi» y súbelo." && exit 1)
+
+  web:
+    name: Frontend (tipos y build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
