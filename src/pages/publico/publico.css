@@ -1,0 +1,112 @@
+/* Estilos de los enlaces públicos (tema oscuro, móvil). */
+.fila-sb { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pub-footer { padding: 20px 16px 28px; display: flex; align-items: center; justify-content: center; gap: 8px; font: 500 12px/16px var(--font-sans); color: var(--tinta-suave); }
+.acento-btn, .acento-btn:hover { background: var(--acento); color: var(--on-acento); }
+.acento-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.boton-ancho { width: 100%; min-height: 52px; font-size: 16px; }
+.texto-pie { text-align: center; font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+
+/* ---------- Venta ---------- */
+.portada { position: relative; margin: 0 16px; }
+.portada__foto { height: 200px; border-radius: 20px; }
+.portada__badge { position: absolute; top: 12px; left: 12px; background: #0b0b0c; color: #9fd36a; }
+.venta { padding-bottom: 0; }
+.venta__meta { display: flex; align-items: center; gap: 8px; font: 600 14px/20px var(--font-sans); color: var(--tinta-suave); }
+.venta__duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.venta__precio { background: var(--acento); color: var(--on-acento); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-height: 112px; }
+.venta__eyebrow { font: 800 11px/14px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; }
+.venta__precio-valor { font-size: 34px; line-height: 34px; font-weight: 800; }
+.venta__org { padding: 16px; display: flex; flex-direction: column; gap: 6px; min-height: 112px; }
+.venta__org-nombre { font: 700 15px/20px var(--font-sans); }
+.venta__verificada { display: inline-flex; align-items: center; gap: 4px; font: 600 12px/16px var(--font-sans); color: var(--verde-texto); }
+.venta__reloj { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.contador { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.contador__celda { background: var(--superficie-alta); border-radius: 12px; padding: 8px 0; text-align: center; }
+.contador__celda b { display: block; font-size: 26px; line-height: 30px; }
+.contador__celda small { font: 800 10px/14px var(--font-sans); letter-spacing: .08em; color: var(--tinta-suave); }
+.venta__progreso-txt { display: flex; justify-content: space-between; margin-top: 8px; font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.venta__progreso-txt b { color: var(--tinta); }
+.venta__premio { justify-content: space-between; }
+.venta__premio-monto { font-weight: 800; white-space: nowrap; font-size: 20px; line-height: 24px; }
+.venta__premio-monto--mayor { font-size: 26px; line-height: 30px; color: var(--estrella); }
+.venta__premio-regla { font: 500 14px/19px var(--font-sans); color: var(--tinta-suave); text-align: right; }
+.venta__libres { font: 600 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.buscar { flex: 1; position: relative; }
+.buscar__icono { position: absolute; left: 12px; top: 13px; color: var(--tinta-suave); }
+.buscar__in { padding-left: 38px; }
+.numeros { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.leyenda { display: flex; gap: 16px; flex-wrap: wrap; font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda i { width: 12px; height: 12px; border-radius: 3px; }
+.leyenda__libre { border: 1px solid var(--borde-control); background: var(--superficie-alta); }
+.leyenda__sel { background: var(--acento); }
+.leyenda__vendido { border: 1px dashed var(--borde-control); }
+.resumen-compra { position: sticky; bottom: 0; margin: 0 -16px; padding: 14px 16px 18px; background: #0b0b0c; border-top: 1px solid var(--linea); display: flex; align-items: center; gap: 12px; }
+.resumen-compra__txt { font: 600 13px/18px var(--font-sans); color: var(--tinta-suave); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resumen-compra__total { font-size: 24px; line-height: 28px; font-weight: 800; }
+
+/* ---------- Pago ---------- */
+.header-titulo { font: 700 16px/20px var(--font-sans); }
+.header-sub { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.pasos-compra { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pasos-compra li { display: flex; flex-direction: column; gap: 6px; font: 700 12px/16px var(--font-sans); color: var(--verde-texto); }
+.pasos-compra li::before { content: ""; height: 4px; border-radius: 4px; background: var(--verde); }
+.pasos-compra li[aria-current="step"] { color: var(--tinta); }
+.pasos-compra li[aria-current="step"]::before { background: var(--tinta); }
+.resumen-pago { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.boleto-chip { min-width: 56px; padding: 10px 0; text-align: center; border-radius: var(--radius-sm); background: var(--verde); color: var(--on-verde); font-size: 18px; font-weight: 700; }
+.resumen-pago__total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--linea); }
+.resumen-pago__total span:first-child { font: 500 14px/20px var(--font-sans); color: var(--tinta-suave); }
+.resumen-pago__total span:last-child { font-size: 28px; line-height: 32px; font-weight: 800; }
+.segmento { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--superficie); }
+.segmento button { min-height: 40px; background: transparent; color: var(--tinta-suave); }
+.segmento button[aria-selected="true"] { background: var(--superficie-alta); color: var(--tinta); }
+.dato-label { font: 600 12px/16px var(--font-sans); color: var(--tinta-suave); }
+.dato-mono { font-size: 18px; line-height: 24px; font-weight: 700; }
+.dato-txt { font: 700 16px/22px var(--font-sans); }
+.subir { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 16px; border-radius: 16px; border: 1.5px dashed var(--borde-control); background: var(--superficie); text-align: center; cursor: pointer; }
+.subir:focus-within { outline: 2px solid var(--foco); outline-offset: 2px; }
+.subir__t { font: 700 15px/20px var(--font-sans); }
+.subir__d { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+
+/* ---------- Mis boletos ---------- */
+.boleto { display: flex; align-items: stretch; overflow: hidden; }
+.boleto__num { width: 96px; flex: none; display: grid; place-items: center; background: var(--superficie-alta); color: var(--tinta); border-right: 2px dashed var(--borde-control); }
+.boleto__num--pago { background: var(--verde); color: var(--on-verde); border-right-color: #0b0b0c; }
+.boleto__num span { font-size: 34px; line-height: 1; font-weight: 700; }
+.boleto__info { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.boleto__estado { display: inline-flex; align-items: center; gap: 6px; font: 700 14px/20px var(--font-sans); }
+.boleto__estado--ok { color: var(--verde-texto); }
+.boleto__estado--espera { color: var(--estrella); }
+.boleto__meta { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.ganaste { padding: 16px; display: flex; flex-direction: column; gap: 12px; outline: 2px solid var(--estrella); outline-offset: -2px; }
+
+/* ---------- Agotado y ganador ---------- */
+.agotado { padding: 24px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.agotado__icono { width: 64px; height: 64px; border-radius: 20px; background: var(--verde); color: var(--on-verde); display: grid; place-items: center; }
+.digitos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.digitos span { padding: 12px 0; text-align: center; border-radius: 14px; background: var(--estrella); color: var(--on-estrella); font-size: 40px; line-height: 44px; font-weight: 700; }
+.ganador-num { width: 48px; flex: none; padding: 8px 0; text-align: center; border-radius: 10px; font-size: 18px; font-weight: 700; background: var(--superficie-alta); color: var(--tinta); }
+.ganador-num--oro { background: var(--estrella); color: var(--on-estrella); }
+.proximo { padding: 20px; border-radius: 24px; background: var(--rojo); color: var(--on-rojo); display: flex; flex-direction: column; gap: 10px; }
+.proximo__btn, .proximo__btn:hover { background: #ffffff; color: #ab1f24; margin-top: 4px; }
+
+/* ---------- Ranking público ---------- */
+.podio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.podio__col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.podio__nombre { font: 700 14px/18px var(--font-sans); text-align: center; }
+.podio__pts { font-size: 13px; color: var(--tinta-suave); }
+.podio__bloque { width: 100%; border-radius: 18px 18px 8px 8px; background: var(--superficie-alta); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px; }
+.podio__bloque--oro { background: var(--estrella); color: var(--on-estrella); }
+.podio__puesto { font-weight: 800; }
+.podio__premio { font: 600 11px/14px var(--font-sans); color: var(--tinta-suave); text-align: center; }
+.podio__bloque--oro .podio__premio { font: 700 12px/16px var(--font-sans); color: inherit; }
+.tu-puesto { padding: 16px; border-radius: 20px; background: var(--verde); color: var(--on-verde); display: flex; align-items: center; gap: 14px; }
+.tu-puesto__n { width: 56px; height: 56px; border-radius: 16px; background: #0b0b0c; color: #9fd36a; display: grid; place-items: center; font-size: 24px; font-weight: 800; flex: none; }
+.rank-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.rank-row:last-child { border-bottom: 0; }
+.rank-row--corte { border-bottom: 1px dashed var(--borde-control); }
+.rank-row--tu { color: var(--verde-texto); }
+.rank-row__pos { width: 28px; font-weight: 700; color: var(--tinta-suave); }
+.rank-row__nombre { flex: 1; min-width: 0; font: 600 15px/20px var(--font-sans); }
+.rank-row--tu .rank-row__nombre { font-weight: 800; }

@@ -1,0 +1,21 @@
+.segmento-claro { display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; border-radius: 14px; background: var(--superficie-alta); flex-wrap: wrap; }
+.segmento-claro button { min-height: 40px; padding: 8px 16px; border: 0; border-radius: 10px; cursor: pointer; font: 700 14px/20px var(--font-sans); background: transparent; color: var(--tinta-suave); }
+.segmento-claro button[aria-selected="true"] { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 2px rgba(18,18,18,.08); }
+.segmento-claro button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+
+.fila-grupo { background: var(--fondo); }
+.rol-card { padding: 20px; display: flex; flex-direction: column; gap: 8px; font: 500 14px/20px var(--font-sans); color: var(--tinta-suave); }
+.dos-pasos { font-weight: 700; }
+.dos-pasos--ok { color: var(--verde-texto); }
+.dos-pasos--pendiente { color: var(--rojo-texto); }
+
+.planes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.plan { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.plan--destacado { box-shadow: 0 0 0 2px var(--verde-profundo); }
+.fila-plan { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.plan__nombre { font-size: 24px; line-height: 28px; font-weight: 800; }
+.plan__limites { display: grid; grid-template-columns: 1fr 88px; gap: 8px 12px; align-items: center; font: 600 14px/20px var(--font-sans); }
+.plan__limites input { text-align: center; }
+.incluye--si { color: var(--verde-texto); font-weight: 800; }
+.incluye--no { color: var(--tinta-suave); }
+.prueba { padding: 20px 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }

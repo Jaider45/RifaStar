@@ -1,0 +1,26 @@
+.pagos-sorteo { display: flex; flex-direction: column; min-width: 260px; }
+
+.pagos-lista { flex: 1 1 360px; max-width: 440px; overflow: hidden; }
+.pagos-lista__head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--linea); }
+.pagos-lista__titulo { font: 700 15px/20px var(--font-sans); }
+.pagos-lista__orden { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.pagos-vacio { padding: 40px 20px; text-align: center; color: var(--tinta-suave); font: 600 15px/22px var(--font-sans); }
+
+.pago-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; border-bottom: 1px solid var(--linea); cursor: pointer; font: inherit; background: transparent; text-align: left; }
+.pago-item[aria-pressed="true"] { background: var(--verde-tenue); box-shadow: inset 3px 0 0 var(--verde-profundo); }
+.pago-item:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+.pago-item__info { flex: 1; min-width: 0; }
+.pago-item__nombre { font: 700 15px/20px var(--font-sans); color: var(--tinta); }
+.pago-item__meta { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.pago-item__monto { font-weight: 700; font-size: 15px; color: var(--tinta); }
+
+.pago-detalle { flex: 999 1 420px; min-width: 0; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; }
+.pago-detalle__captura { flex: 1 1 240px; min-height: 420px; border-radius: 16px; }
+.pago-detalle__datos { flex: 1 1 280px; display: flex; flex-direction: column; gap: 18px; }
+.pago-detalle__label { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+.pago-detalle__nombre { font-size: 26px; line-height: 30px; font-weight: 800; }
+.pago-detalle__num { min-width: 52px; padding: 8px 0; text-align: center; border-radius: 8px; background: var(--superficie-alta); font-weight: 700; font-size: 18px; }
+.pago-detalle__dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; font: 500 14px/20px var(--font-sans); }
+.pago-detalle__dl dt { color: var(--tinta-suave); }
+.pago-detalle__dl dd { margin: 0; }
+.pago-detalle__acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; }

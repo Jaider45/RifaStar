@@ -1,0 +1,10 @@
+.kpi--hoy { background: #0b0b0c; color: #f5f5f2; border-color: #0b0b0c; }
+.kpi--hoy .kpi__label { color: #a6a5a1; }
+.kpi--hoy__nombre { font-family: var(--font-display); letter-spacing: -.02em; font-size: 22px; line-height: 26px; font-weight: 800; }
+.kpi--hoy__reloj { font: 700 20px/24px var(--font-mono); color: #ffc53d; }
+
+.sorteo-cell { display: flex; align-items: center; gap: 12px; }
+.sorteo-cell__foto { width: 48px; height: 48px; border-radius: 12px; flex: none; }
+.sorteo-cell__nombre { font: 700 15px/20px var(--font-sans); }
+.sorteo-cell__slug { font-size: 13px; line-height: 18px; color: var(--tinta-suave); }
+.sorteo-cell__vendidos { font: 600 13px/18px var(--font-sans); color: var(--tinta-suave); margin-top: 6px; }

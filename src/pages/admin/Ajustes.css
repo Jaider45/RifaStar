@@ -1,0 +1,30 @@
+.ajustes-tabs { flex: 1 1 220px; max-width: 240px; display: flex; flex-direction: column; gap: 2px; }
+.ajustes-tab { text-align: left; min-height: 44px; padding: 10px 14px; border: 0; border-radius: 12px; cursor: pointer; font: 600 15px/20px var(--font-sans); background: transparent; color: var(--tinta-suave); }
+.ajustes-tab[aria-selected="true"] { background: var(--superficie); color: var(--tinta); box-shadow: 0 0 0 1px var(--linea); }
+.ajustes-tab:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+@media (max-width: 820px) {
+  .ajustes-tabs { flex-basis: 100%; max-width: none; flex-direction: row; overflow-x: auto; }
+  .ajustes-tab { white-space: nowrap; }
+}
+
+.ajustes-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ajustes-head--equipo { padding: 20px 24px; border-bottom: 1px solid var(--linea); }
+.ajustes-selects { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.ajustes-selects--col { flex-direction: column; align-items: flex-end; }
+.ajustes-acciones { display: flex; justify-content: flex-end; gap: 12px; }
+
+.puntos-grid { display: grid; grid-template-columns: auto 72px; gap: 8px 12px; align-items: center; font: 600 14px/20px var(--font-sans); }
+.puntos-grid input { text-align: center; }
+
+.premios-ranking { display: grid; grid-template-columns: 32px minmax(0, 260px); gap: 8px 10px; align-items: center; }
+.premios-ranking__pos { font-weight: 700; text-align: center; }
+
+.logo-org { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.logo-org__foto { width: 72px; height: 72px; border-radius: 18px; }
+
+.roles-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 20px 24px; background: var(--fondo); }
+
+@media (max-width: 620px) {
+  .setting { flex-wrap: wrap; gap: 12px; }
+  .ajustes-selects, .ajustes-selects--col { align-items: stretch; justify-content: flex-start; }
+}

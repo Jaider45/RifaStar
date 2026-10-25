@@ -1,0 +1,22 @@
+.ranking-resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.ranking-resumen__reloj { font-size: 30px; line-height: 36px; font-weight: 700; }
+.ranking-resumen__enlace { gap: 10px; grid-column: span 2; min-width: 0; }
+@media (max-width: 620px) { .ranking-resumen__enlace { grid-column: auto; } }
+.ranking-enlace { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ranking-enlace__url { flex: 1 1 220px; padding: 10px 12px; border-radius: 8px; background: var(--superficie-alta); font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pos { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; font-weight: 700; }
+.pos--oro { background: var(--estrella); color: var(--on-estrella); }
+.pos--podio { background: var(--tinta); color: var(--fondo); }
+.pos--resto { background: var(--superficie-alta); }
+
+.cambio { font-weight: 700; }
+.cambio--sube { color: var(--verde-texto); }
+.cambio--baja { color: var(--rojo-texto); }
+.cambio--igual { color: var(--tinta-suave); }
+
+.premios-mes { flex: 1 1 300px; max-width: 360px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.premios-mes__fila { display: flex; align-items: center; gap: 12px; }
+.premios-mes__pos { width: 40px; height: 40px; border-radius: 12px; background: var(--superficie-alta); display: grid; place-items: center; font-weight: 700; flex: none; }
+.premios-mes__pos--oro { background: var(--estrella); color: var(--on-estrella); }
+.premios-mes__txt { font: 600 15px/20px var(--font-sans); }

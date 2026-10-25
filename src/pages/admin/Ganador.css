@@ -1,0 +1,19 @@
+.resultado { padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; }
+.resultado__digitos { display: flex; gap: 8px; }
+.resultado__digito { width: 64px; height: 76px; text-align: center; font-size: 36px; font-weight: 700; }
+.resultado__anticipado { width: 160px; height: 76px; font-size: 28px; font-weight: 700; text-align: center; }
+.resultado__prueba { display: flex; flex-direction: column; gap: 8px; }
+
+/* Pieza 4:5 para estados de WhatsApp */
+.pieza { aspect-ratio: 4 / 5; border-radius: 24px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+.pieza__dado { position: absolute; }
+.pieza__dado--rojo { right: -40px; top: -30px; width: 170px; height: 170px; border-radius: 36px; background: var(--rojo); transform: rotate(12deg); }
+.pieza__dado--verde { right: 70px; top: -60px; width: 120px; height: 120px; border-radius: 28px; background: var(--verde); transform: rotate(-14deg); }
+.pieza__logo { height: 26px; width: auto; align-self: flex-start; position: relative; }
+.pieza__body { position: relative; display: flex; flex-direction: column; gap: 10px; }
+.pieza__titulo { font-size: 40px; line-height: 40px; font-weight: 800; }
+.pieza__premio { display: flex; align-items: center; gap: 12px; }
+.pieza__numero { padding: 6px 14px; border-radius: 14px; background: var(--estrella); color: var(--on-estrella); font-size: 44px; line-height: 52px; font-weight: 700; }
+.pieza__regla { font: 600 15px/20px var(--font-sans); color: var(--tinta-suave); }
+.pieza__regla b { font-size: 24px; color: var(--tinta); }
+.pieza__pie { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
