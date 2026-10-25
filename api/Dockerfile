@@ -4,6 +4,8 @@ WORKDIR /app
 
 # --- Todas las dependencias (migraciones, seed, tests) ---
 FROM base AS dev
+# argon2 compila su módulo nativo cuando no hay binario precompilado para esta versión de Node.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

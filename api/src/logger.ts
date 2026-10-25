@@ -22,7 +22,17 @@ export function loggerParams(): Params {
           url: req.url.split('?')[0],
         }),
       },
-      transport: env().NODE_ENV === 'development' ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
+      transport: env().NODE_ENV === 'development' && hasPinoPretty() ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
     },
   };
+}
+
+/** pino-pretty es dependencia de desarrollo: la imagen de Docker no la trae aunque corra con NODE_ENV=development. */
+function hasPinoPretty(): boolean {
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
 }
