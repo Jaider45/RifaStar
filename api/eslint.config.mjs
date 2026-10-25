@@ -28,6 +28,7 @@ export default tseslint.config(
       'src/public/**',
       'src/permissions/**',
       'src/health.controller.ts',
+      'src/plans/**',
     ],
     rules: {
       'no-restricted-syntax': [

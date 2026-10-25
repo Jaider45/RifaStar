@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { NotificationsService } from '../messaging/notifications.service';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
 import { UploadConfirmDto, UploadRequestDto } from '../raffles/raffles.dto';
 import type { OrgContext } from '../tenancy/org-context';
@@ -10,7 +11,17 @@ import { ResultsService } from './results.service';
 @OrgScoped()
 @Controller()
 export class ResultsController {
-  constructor(private readonly results: ResultsService) {}
+  constructor(
+    private readonly results: ResultsService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  @Post('raffles/:id/results/notify')
+  @HttpCode(200)
+  @RequirePermission('winners.announce')
+  notify(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notifications.notifyWinners(org.id, id);
+  }
 
   @Put('raffles/:id/result')
   @RequirePermission('winners.announce')

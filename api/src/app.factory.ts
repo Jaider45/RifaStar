@@ -13,7 +13,8 @@ export const API_PREFIX = 'v1';
 
 /** Crea la app configurada (sin escuchar). La usan main.ts y los tests. */
 export async function createApp(): Promise<NestExpressApplication> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  // rawBody: los webhooks verifican la firma sobre el cuerpo exacto.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
   app.set('trust proxy', 1);
   app.use(helmet());

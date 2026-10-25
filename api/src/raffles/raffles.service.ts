@@ -7,6 +7,7 @@ import { env } from '../config/env';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService, type Tx } from '../database/database.service';
 import { SchedulerService } from '../jobs/scheduler.service';
+import { NotificationsService } from '../messaging/notifications.service';
 import { expireReservedOrders } from '../orders/order-ops';
 import { IMAGE_TYPES, MB } from '../storage/file-type';
 import { StorageProvider } from '../storage/storage.provider';
@@ -39,7 +40,13 @@ export class RafflesService {
     private readonly uploads: UploadsService,
     private readonly storage: StorageProvider,
     private readonly scheduler: SchedulerService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /** Las notificaciones nunca hacen fallar la operación que ya se confirmó. */
+  private async notify(fn: () => Promise<unknown>) {
+    await fn().catch(() => undefined);
+  }
 
   // ---------------------------------------------------------------------------
   // Lectura
@@ -257,6 +264,7 @@ export class RafflesService {
       { timeoutMs: 30_000 },
     );
     await this.scheduler.scheduleRaffle(raffle);
+    await this.notify(() => this.notifications.raffleAnnounced(org.id, id));
     return this.present(org, raffle);
   }
 
@@ -336,6 +344,7 @@ export class RafflesService {
       });
       return this.find(tx, id);
     });
+    await this.notify(() => this.notifications.raffleCancelled(org.id, id, reason));
     return this.present(org, raffle);
   }
 

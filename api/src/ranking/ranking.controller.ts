@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Header, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 import { zUuid } from '../common/zod';
+import { NotificationsService } from '../messaging/notifications.service';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
 import type { OrgContext } from '../tenancy/org-context';
 import { RankingService } from './ranking.service';
@@ -19,7 +20,17 @@ class AdjustmentDto extends createZodDto(
 @OrgScoped()
 @Controller('ranking')
 export class RankingController {
-  constructor(private readonly ranking: RankingService) {}
+  constructor(
+    private readonly ranking: RankingService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  @Post('periods/:id/announce')
+  @HttpCode(200)
+  @RequirePermission('ranking.configure')
+  announce(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notifications.rankingTop10(org.id, id, 'manual');
+  }
 
   @Get('current')
   @RequirePermission('raffles.view')

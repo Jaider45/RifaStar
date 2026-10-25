@@ -45,6 +45,8 @@ const EnvSchema = z.object({
   WHATSAPP_APP_SECRET: z.string().default(''),
   WHATSAPP_VERIFY_TOKEN: z.string().default(''),
   WHATSAPP_API_VERSION: z.string().default('v21.0'),
+  /** Base del reintento exponencial de send-whatsapp (ms). */
+  MESSAGES_RETRY_BASE_MS: z.coerce.number().int().positive().default(30_000),
 
   BILLING_DRIVER: z.enum(['stripe', 'fake']).default('fake'),
   STRIPE_SECRET_KEY: z.string().default(''),

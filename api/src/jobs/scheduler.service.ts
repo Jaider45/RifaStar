@@ -1,7 +1,8 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { env } from '../config/env';
 import { RedisService } from '../redis/redis.service';
-import { JOB, MAINTENANCE_QUEUE } from './jobs.constants';
+import { JOB, MAINTENANCE_QUEUE, MESSAGES_QUEUE } from './jobs.constants';
 
 export interface SchedulableRaffle {
   id: string;
@@ -18,8 +19,21 @@ export interface SchedulableRaffle {
 @Injectable()
 export class SchedulerService implements OnModuleDestroy {
   readonly maintenance: Queue;
+  readonly messages: Queue;
+
+  /** Intentos de send-whatsapp (backoff exponencial desde MESSAGES_RETRY_BASE_MS). */
+  static readonly MESSAGE_ATTEMPTS = 6;
 
   constructor(redis: RedisService) {
+    this.messages = new Queue(MESSAGES_QUEUE, {
+      connection: redis.duplicate(),
+      defaultJobOptions: {
+        removeOnComplete: 5000,
+        removeOnFail: 10000,
+        attempts: SchedulerService.MESSAGE_ATTEMPTS,
+        backoff: { type: 'exponential', delay: env().MESSAGES_RETRY_BASE_MS },
+      },
+    });
     this.maintenance = new Queue(MAINTENANCE_QUEUE, {
       connection: redis.duplicate(),
       defaultJobOptions: { removeOnComplete: 1000, removeOnFail: 5000, attempts: 5, backoff: { type: 'exponential', delay: 10_000 } },
@@ -30,7 +44,19 @@ export class SchedulerService implements OnModuleDestroy {
     return `close-sales_${raffleId}_${at.getTime()}`;
   }
 
+  static drawReminderJobId(raffleId: string, drawAt: Date) {
+    return `draw-reminder_${raffleId}_${drawAt.getTime()}`;
+  }
+
   async scheduleRaffle(raffle: SchedulableRaffle): Promise<void> {
+    const remindAt = raffle.drawAt.getTime() - 2 * 3_600_000;
+    if (remindAt > Date.now()) {
+      await this.maintenance.add(
+        JOB.drawReminder,
+        { organizationId: raffle.organizationId, raffleId: raffle.id, drawAt: raffle.drawAt.toISOString() },
+        { jobId: SchedulerService.drawReminderJobId(raffle.id, raffle.drawAt), delay: remindAt - Date.now() },
+      );
+    }
     if (raffle.salesCloseAt) {
       await this.maintenance.add(
         JOB.closeSales,
@@ -44,6 +70,6 @@ export class SchedulerService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.maintenance.close();
+    await Promise.all([this.maintenance.close(), this.messages.close()]);
   }
 }

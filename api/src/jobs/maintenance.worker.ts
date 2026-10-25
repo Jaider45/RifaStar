@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { type Job, Worker } from 'bullmq';
+import { NotificationsService } from '../messaging/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import { JOB, MAINTENANCE_QUEUE } from './jobs.constants';
 import { MaintenanceService } from './maintenance.service';
@@ -21,11 +22,16 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     private readonly redis: RedisService,
     private readonly scheduler: SchedulerService,
     private readonly maintenance: MaintenanceService,
+    private readonly notifications: NotificationsService,
   ) {
     this.register(JOB.expireReservations, () => this.maintenance.expireReservations());
     this.register(JOB.closeSalesSweep, () => this.maintenance.closeSalesSweep());
     this.register(JOB.closeSales, (job) => this.maintenance.closeSales(job.data.organizationId, job.data.raffleId));
     this.register(JOB.rankingRollover, () => this.maintenance.rankingRollover());
+    this.register(JOB.drawReminder, (job) =>
+      this.notifications.drawReminder(job.data.organizationId, job.data.raffleId, job.data.drawAt),
+    );
+    this.register(JOB.dailyDigest, () => this.notifications.dailyDigest());
   }
 
   /** Otras fases agregan sus manejadores aquí (ranking, recordatorios, facturación…). */
@@ -38,6 +44,7 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     await q.upsertJobScheduler(JOB.expireReservations, { every: 60_000 }, { name: JOB.expireReservations });
     await q.upsertJobScheduler(JOB.closeSalesSweep, { every: 60_000 }, { name: JOB.closeSalesSweep });
     await q.upsertJobScheduler(JOB.rankingRollover, { every: 60_000 }, { name: JOB.rankingRollover });
+    await q.upsertJobScheduler(JOB.dailyDigest, { every: 15 * 60_000 }, { name: JOB.dailyDigest });
 
     this.worker = new Worker(
       MAINTENANCE_QUEUE,
