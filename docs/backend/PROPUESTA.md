@@ -1,7 +1,7 @@
 # Rifa Star · Propuesta de backend (para aprobación)
 
-> Estado: **propuesta**. No hay código del backend todavía. Este documento y
-> [`schema.prisma`](./schema.prisma) son lo que pide el punto 10.1. Al final hay
+> Estado: **aprobada** (P1–P12 con la recomendación; P3 con coincidencia exacta). Este documento y
+> [`api/prisma/schema.prisma`](../../api/prisma/schema.prisma) son lo que pide el punto 10.1. Al final hay
 > **preguntas abiertas (P1–P12)**: cada una trae una recomendación que aplicaré
 > si la apruebas tal cual.
 
@@ -474,7 +474,10 @@ Login de usuarios de org: email + contraseña, con 2FA TOTP **opcional**.
 - **4 cifras:** `full_number` = ABCD, `anticipated_full_number` = el resultado completo del anticipado.
 - Las reglas de 2 cifras (`last_two`, `first_two`, `middle_two`, `digits_1_and_4`, `anticipated_last_two`) en un sorteo de 3 o 4 cifras: **no permitidas** (validación al crear).
 
-¿O se usan como aproximaciones (por ejemplo, en 4 cifras, todos los números pagados que terminan en CD ganan `last_two`)? El módulo soporta ambas; necesito saber cuál habilitar.
+**Decidido (aprobado):** coincidencia **exacta**, sin aproximaciones. Ejemplo
+con resultado `2435` en un sorteo de 2 cifras y premio «dos últimas»: gana el
+`35`; el `43` pierde. En 3 y 4 cifras se compara el número completo con la
+parte del resultado que corresponde a la regla.
 
 **P4. Pagos en verificación al cierre de venta.** Al llegar a `sales_close_at`:
 → *Recomiendo:* las órdenes `reserved` sin comprobante vencen de inmediato; las

@@ -1,12 +1,11 @@
 // =============================================================================
-// Rifa Star · Esquema Prisma (PROPUESTA para aprobación)
-// Destino final: api/prisma/schema.prisma
+// Rifa Star · Esquema Prisma
 //
 // Convenciones
 // - Modelos en PascalCase; tablas y columnas en snake_case (@@map / @map) para
 //   que las políticas RLS y el SQL crudo usen nombres estables.
-// - Toda tabla del tenant lleva organization_id + política RLS (ver
-//   docs/backend/rls.sql, que va como migración SQL aparte).
+// - Toda tabla del tenant lleva organization_id + política RLS (migración
+//   «tenancy_rls» en prisma/migrations).
 // - Dinero: COP en enteros (Int). Fechas: timestamptz en UTC.
 // - Lo que Prisma no expresa (CHECK, índices parciales, triggers de
 //   inmutabilidad, RLS) va en migraciones SQL versionadas y está anotado con
@@ -450,9 +449,24 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  memberships Member[]
+  memberships    Member[]
+  passwordResets PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Member {

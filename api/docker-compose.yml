@@ -1,0 +1,94 @@
+# Entorno de desarrollo de la API de Rifa Star.
+#   docker compose up -d --build
+#   docker compose run --rm api npx prisma migrate deploy   (lo hace el servicio migrate)
+name: rifastar
+
+x-api-env: &api-env
+  NODE_ENV: development
+  PORT: 3000
+  CORS_ORIGINS: http://localhost:5173
+  PUBLIC_BASE_URL: http://localhost:5173
+  DATABASE_URL: postgresql://rifastar:rifastar@postgres:5432/rifastar
+  APP_DATABASE_URL: postgresql://rifastar_app:rifastar_app@postgres:5432/rifastar
+  SYSTEM_DATABASE_URL: postgresql://rifastar_system:rifastar_system@postgres:5432/rifastar
+  REDIS_URL: redis://redis:6379
+  JWT_ACCESS_SECRET: dev-access-secret-cambia-esto-en-produccion
+  JWT_PARTICIPANT_SECRET: dev-participant-secret-cambia-esto-en-prod
+  ENCRYPTION_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+  HASH_PEPPER: dev-pepper
+  COOKIE_SECURE: "false"
+  S3_ENDPOINT: http://minio:9000
+  S3_PUBLIC_ENDPOINT: http://localhost:9000
+  S3_BUCKET: rifastar
+  S3_ACCESS_KEY: rifastar
+  S3_SECRET_KEY: rifastar-secret
+  S3_FORCE_PATH_STYLE: "true"
+  MAIL_DRIVER: smtp
+  SMTP_URL: smtp://mailpit:1025
+  MESSAGING_DRIVER: fake
+  BILLING_DRIVER: fake
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rifastar
+      POSTGRES_PASSWORD: rifastar
+      POSTGRES_DB: rifastar
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rifastar"]
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: rifastar
+      MINIO_ROOT_PASSWORD: rifastar-secret
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [minio:/data]
+
+  minio-setup:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "until mc alias set local http://minio:9000 rifastar rifastar-secret; do sleep 1; done;
+      mc mb --ignore-existing local/rifastar; mc anonymous set none local/rifastar"
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports: ["8025:8025", "1025:1025"]
+
+  # Usa la etapa de build (tiene tsx) para migrar y sembrar datos de desarrollo.
+  migrate:
+    build: { context: ., target: dev }
+    environment: *api-env
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: .
+    environment: *api-env
+    ports: ["3000:3000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  minio:
