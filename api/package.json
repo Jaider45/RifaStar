@@ -21,7 +21,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
-    "openapi": "tsx scripts/export-openapi.ts"
+    "openapi": "nest build && node dist/openapi-export.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1156.0",

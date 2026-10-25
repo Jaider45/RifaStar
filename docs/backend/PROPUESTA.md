@@ -1,9 +1,12 @@
-# Rifa Star · Propuesta de backend (para aprobación)
+# Rifa Star · Propuesta de backend
 
-> Estado: **aprobada** (P1–P12 con la recomendación; P3 con coincidencia exacta). Este documento y
-> [`api/prisma/schema.prisma`](../../api/prisma/schema.prisma) son lo que pide el punto 10.1. Al final hay
-> **preguntas abiertas (P1–P12)**: cada una trae una recomendación que aplicaré
-> si la apruebas tal cual.
+> Estado: **aprobada e implementada** (P1–P12 con la recomendación; P3 con
+> coincidencia exacta). El código está en [`api/`](../../api/README.md) y el
+> esquema en [`api/prisma/schema.prisma`](../../api/prisma/schema.prisma).
+> Diferencias con este documento: los permisos se resuelven en cada request
+> (una consulta indexada) en lugar de cachearse en Redis; se agregaron
+> `GET /public/domains/:host`, `POST /organization/logo` y
+> `POST /platform/me/password`.
 
 ---
 
@@ -111,8 +114,8 @@ plan lo permite; bono de constancia si aplica; `sold_out` si
 ### 2.5 Permisos (§5)
 
 - `@RequirePermission('payments.approve')` + `PermissionGuard`: resuelve
-  `Member` (org activa + usuario) → `Role` → claves. Se cachea 60 s en Redis y
-  se invalida al cambiar un rol o una membresía.
+  `Member` (org activa + usuario) → `Role` → claves. Se resuelve en cada
+  request, así un cambio de rol o membresía aplica de inmediato.
 - Los roles base son filas globales (`organization_id = null`). Un cambio en la
   plantilla de plataforma aplica a todas las orgs (ver **P10**). `owner` está
   bloqueado y siempre tiene todas las claves.
