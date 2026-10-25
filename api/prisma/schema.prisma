@@ -1,0 +1,981 @@
+// =============================================================================
+// Rifa Star · Esquema Prisma
+//
+// Convenciones
+// - Modelos en PascalCase; tablas y columnas en snake_case (@@map / @map) para
+//   que las políticas RLS y el SQL crudo usen nombres estables.
+// - Toda tabla del tenant lleva organization_id + política RLS (migración
+//   «tenancy_rls» en prisma/migrations).
+// - Dinero: COP en enteros (Int). Fechas: timestamptz en UTC.
+// - Lo que Prisma no expresa (CHECK, índices parciales, triggers de
+//   inmutabilidad, RLS) va en migraciones SQL versionadas y está anotado con
+//   «SQL:» en cada modelo.
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [citext, btree_gist]
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum PlatformRole {
+  super_admin
+  support
+  finance
+}
+
+enum OrgStatus {
+  trial
+  active
+  past_due
+  suspended
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+  incomplete
+}
+
+enum BillingProviderKind {
+  stripe
+  wompi
+  mercadopago
+  manual
+}
+
+enum InvoiceStatus {
+  open
+  paid
+  failed
+  void
+}
+
+enum TrialExpiryAction {
+  downgrade_to_plan // «Pasar a Básico»
+  block_new_raffles // «Pausar sorteos nuevos»
+}
+
+enum MemberStatus {
+  invited
+  active
+  removed
+}
+
+enum SettingsSection {
+  payments
+  ranking
+  notifications
+  branding
+}
+
+enum PaymentAccountType {
+  bre_b
+  nequi
+  daviplata
+  bank_transfer
+}
+
+enum RaffleStatus {
+  draft
+  active
+  sold_out
+  closed
+  drawn
+  cancelled
+}
+
+enum PrizeRule {
+  last_two
+  first_two
+  middle_two
+  digits_1_and_4
+  anticipated_last_two
+  custom
+  // Adaptación para 3 y 4 cifras (pendiente de confirmar, ver pregunta P3)
+  last_three
+  first_three
+  full_number
+  anticipated_full_number
+}
+
+enum NumberStatus {
+  available
+  reserved
+  pending_verification
+  paid
+}
+
+enum OrderStatus {
+  reserved
+  pending_verification
+  approved
+  rejected
+  expired
+  released // liberado manualmente con payments.release (ver pregunta P9)
+}
+
+enum TicketStatus {
+  valid
+  void
+}
+
+enum PrizeDeliveryStatus {
+  pending
+  delivered
+}
+
+enum RankingFrequency {
+  monthly
+  biweekly
+  weekly
+}
+
+enum RankingPeriodStatus {
+  open
+  closed
+}
+
+enum PointsReason {
+  number_paid
+  consistency_bonus
+  referral_bonus
+  manual_adjustment
+}
+
+enum MessageStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+  skipped_quota
+  skipped_disabled
+}
+
+enum ActorType {
+  platform_user
+  user
+  participant
+  system
+}
+
+enum SessionSubject {
+  user
+  platform_user
+}
+
+enum UsageMetric {
+  whatsapp_messages
+}
+
+// =============================================================================
+// PLATAFORMA
+// =============================================================================
+
+model PlatformUser {
+  id            String       @id @default(uuid()) @db.Uuid
+  email         String       @unique @db.Citext
+  name          String
+  role          PlatformRole
+  passwordHash  String       @map("password_hash")
+  totpSecretEnc String?      @map("totp_secret_enc") // cifrado AES-GCM con KMS/ENV key
+  totpEnabledAt DateTime?    @map("totp_enabled_at") @db.Timestamptz
+  lastLoginAt   DateTime?    @map("last_login_at") @db.Timestamptz
+  disabledAt    DateTime?    @map("disabled_at") @db.Timestamptz
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  supportSessions SupportSession[]
+
+  @@map("platform_users")
+}
+
+/// Matriz de permisos del equipo de plataforma (platform.*). super_admin
+/// siempre tiene todas; se valida en código y no se puede editar.
+model PlatformRolePermission {
+  role          PlatformRole
+  permissionKey String       @map("permission_key")
+
+  @@id([role, permissionKey])
+  @@map("platform_role_permissions")
+}
+
+model Plan {
+  id                      String   @id @default(uuid()) @db.Uuid
+  code                    String   @unique // basico | pro | agencia | ...
+  name                    String
+  monthlyPriceCop         Int      @map("monthly_price_cop")
+  maxActiveRaffles        Int?     @map("max_active_raffles") // null = ilimitado
+  maxMembers              Int      @map("max_members")
+  monthlyWhatsappMessages Int      @map("monthly_whatsapp_messages")
+  featureRanking          Boolean  @default(false) @map("feature_ranking")
+  featureWhatsappAuto     Boolean  @default(false) @map("feature_whatsapp_automation")
+  featureSellers          Boolean  @default(false) @map("feature_sellers")
+  featureCustomRoles      Boolean  @default(false) @map("feature_custom_roles")
+  featureCustomDomain     Boolean  @default(false) @map("feature_custom_domain")
+  featureWhiteLabel       Boolean  @default(false) @map("feature_white_label")
+  /// Id de precio por proveedor: { "stripe": "price_123", "wompi": "..." }
+  externalPriceIds        Json     @default("{}") @map("external_price_ids")
+  highlighted             Boolean  @default(false) // «Más elegido»
+  sortOrder               Int      @default(0) @map("sort_order")
+  archivedAt              DateTime? @map("archived_at") @db.Timestamptz
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  subscriptions     Subscription[]
+  trialConfigs      TrialConfig[]  @relation("TrialPlan")
+  trialDowngrades   TrialConfig[]  @relation("TrialDowngradePlan")
+
+  @@map("plans")
+}
+
+/// Fila única (id = 1). SQL: CHECK (id = 1).
+model TrialConfig {
+  id                Int               @id @default(1)
+  planId            String            @map("plan_id") @db.Uuid
+  days              Int
+  onExpire          TrialExpiryAction @map("on_expire")
+  downgradePlanId   String?           @map("downgrade_plan_id") @db.Uuid
+  /// Días en past_due antes de pasar a suspended (ver pregunta P7).
+  pastDueGraceDays  Int               @default(7) @map("past_due_grace_days")
+  updatedById       String?           @map("updated_by_id") @db.Uuid
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  plan          Plan  @relation("TrialPlan", fields: [planId], references: [id])
+  downgradePlan Plan? @relation("TrialDowngradePlan", fields: [downgradePlanId], references: [id])
+
+  @@map("trial_config")
+}
+
+/// Libro de auditoría (solo inserción). SQL: trigger que rechaza UPDATE/DELETE.
+model AuditLog {
+  id               BigInt    @id @default(autoincrement())
+  actorType        ActorType @map("actor_type")
+  actorId          String?   @map("actor_id") @db.Uuid
+  actorLabel       String?   @map("actor_label") // «Soporte Rifa Star · Ana» (sin datos sensibles)
+  organizationId   String?   @map("organization_id") @db.Uuid
+  supportSessionId String?   @map("support_session_id") @db.Uuid
+  action           String // p. ej. raffle.publish, order.approve, support.session_start
+  entityType       String    @map("entity_type")
+  entityId         String?   @map("entity_id")
+  before           Json?
+  after            Json?
+  ip               String?   @db.Inet
+  userAgent        String?   @map("user_agent")
+  requestId        String?   @map("request_id")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([actorType, actorId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
+/// «Entrar como soporte»: solo lectura y con vencimiento.
+model SupportSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  platformUserId String    @map("platform_user_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  reason         String
+  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz
+  ip             String?   @db.Inet
+
+  platformUser PlatformUser @relation(fields: [platformUserId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, expiresAt])
+  @@map("support_sessions")
+}
+
+/// Refresh tokens rotativos (familia + detección de reutilización).
+model RefreshToken {
+  id             String         @id @default(uuid()) @db.Uuid
+  subjectType    SessionSubject @map("subject_type")
+  userId         String?        @map("user_id") @db.Uuid
+  platformUserId String?        @map("platform_user_id") @db.Uuid
+  familyId       String         @map("family_id") @db.Uuid
+  tokenHash      String         @unique @map("token_hash") // SHA-256, nunca el token
+  expiresAt      DateTime       @map("expires_at") @db.Timestamptz
+  rotatedAt      DateTime?      @map("rotated_at") @db.Timestamptz
+  revokedAt      DateTime?      @map("revoked_at") @db.Timestamptz
+  ip             String?        @db.Inet
+  userAgent      String?        @map("user_agent")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([platformUserId])
+  @@map("refresh_tokens")
+}
+
+// =============================================================================
+// FACTURACIÓN DEL SAAS
+// =============================================================================
+
+model Subscription {
+  id                     String              @id @default(uuid()) @db.Uuid
+  organizationId         String              @map("organization_id") @db.Uuid
+  planId                 String              @map("plan_id") @db.Uuid
+  status                 SubscriptionStatus
+  provider               BillingProviderKind
+  externalCustomerId     String?             @map("external_customer_id")
+  externalSubscriptionId String?             @map("external_subscription_id")
+  currentPeriodStart     DateTime?           @map("current_period_start") @db.Timestamptz
+  currentPeriodEnd       DateTime?           @map("current_period_end") @db.Timestamptz
+  trialEndsAt            DateTime?           @map("trial_ends_at") @db.Timestamptz
+  cancelAtPeriodEnd      Boolean             @default(false) @map("cancel_at_period_end")
+  pastDueSince           DateTime?           @map("past_due_since") @db.Timestamptz
+  canceledAt             DateTime?           @map("canceled_at") @db.Timestamptz
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  plan         Plan         @relation(fields: [planId], references: [id])
+  invoices     Invoice[]
+
+  // SQL: UNIQUE (organization_id) WHERE status <> 'canceled'  → una vigente por org
+  @@unique([provider, externalSubscriptionId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  subscriptionId String        @map("subscription_id") @db.Uuid
+  provider       BillingProviderKind
+  externalId     String        @map("external_id")
+  amountCop      Int           @map("amount_cop")
+  status         InvoiceStatus
+  attemptedAt    DateTime?     @map("attempted_at") @db.Timestamptz
+  paidAt         DateTime?     @map("paid_at") @db.Timestamptz
+  failureReason  String?       @map("failure_reason")
+  periodStart    DateTime?     @map("period_start") @db.Timestamptz
+  periodEnd      DateTime?     @map("period_end") @db.Timestamptz
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([provider, externalId])
+  @@index([status, attemptedAt])
+  @@map("invoices")
+}
+
+/// Bandeja de webhooks del proveedor (idempotencia de billing-sync).
+model BillingEvent {
+  id              String              @id @default(uuid()) @db.Uuid
+  provider        BillingProviderKind
+  externalEventId String              @map("external_event_id")
+  type            String
+  payload         Json
+  receivedAt      DateTime            @default(now()) @map("received_at") @db.Timestamptz
+  processedAt     DateTime?           @map("processed_at") @db.Timestamptz
+  attempts        Int                 @default(0)
+  lastError       String?             @map("last_error")
+
+  @@unique([provider, externalEventId])
+  @@index([processedAt])
+  @@map("billing_events")
+}
+
+// =============================================================================
+// ORGANIZACIÓN
+// =============================================================================
+
+model Organization {
+  id                     String    @id @default(uuid()) @db.Uuid
+  name                   String // nombre público
+  slug                   String    @unique @db.Citext // SQL: CHECK (slug ~ '^[a-z0-9](-?[a-z0-9])+$') + lista de reservados en código
+  supportWhatsapp        String?   @map("support_whatsapp") // E.164
+  logoKey                String?   @map("logo_key")
+  defaultAccentColor     String    @default("#7eb742") @map("default_accent_color")
+  customDomain           String?   @unique @map("custom_domain") @db.Citext
+  customDomainVerifiedAt DateTime? @map("custom_domain_verified_at") @db.Timestamptz
+  timezone               String    @default("America/Bogota")
+  status                 OrgStatus @default(trial)
+  trialEndsAt            DateTime? @map("trial_ends_at") @db.Timestamptz
+  suspendedAt            DateTime? @map("suspended_at") @db.Timestamptz
+  suspensionReason       String?   @map("suspension_reason")
+  raffleSequence         Int       @default(0) @map("raffle_sequence") // para códigos RS-0042-07
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  subscriptions   Subscription[]
+  invoices        Invoice[]
+  members         Member[]
+  roles           Role[]
+  settings        OrgSettings[]
+  paymentAccounts PaymentAccount[]
+  raffles         Raffle[]
+  participants    Participant[]
+  orders          Order[]
+  rankingPeriods  RankingPeriod[]
+  auditLogs       AuditLog[]
+  supportSessions SupportSession[]
+
+  @@index([status])
+  @@map("organizations")
+}
+
+/// Usuario de organización (cuenta global; puede pertenecer a varias orgs).
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique @db.Citext
+  name            String
+  passwordHash    String?   @map("password_hash") // null mientras la invitación no se acepta
+  totpSecretEnc   String?   @map("totp_secret_enc")
+  totpEnabledAt   DateTime? @map("totp_enabled_at") @db.Timestamptz
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  memberships    Member[]
+  passwordResets PasswordResetToken[]
+
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Member {
+  id              String       @id @default(uuid()) @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  roleId          String       @map("role_id") @db.Uuid
+  status          MemberStatus @default(invited)
+  sellerCode      String?      @map("seller_code") @db.Citext // ?v=CODIGO en el enlace
+  inviteTokenHash String?      @unique @map("invite_token_hash")
+  inviteExpiresAt DateTime?    @map("invite_expires_at") @db.Timestamptz
+  invitedById     String?      @map("invited_by_id") @db.Uuid
+  joinedAt        DateTime?    @map("joined_at") @db.Timestamptz
+  lastAccessAt    DateTime?    @map("last_access_at") @db.Timestamptz
+  removedAt       DateTime?    @map("removed_at") @db.Timestamptz
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  role         Role         @relation(fields: [roleId], references: [id])
+  sales        Order[]      @relation("SellerOrders")
+
+  @@unique([organizationId, userId])
+  @@unique([organizationId, sellerCode])
+  @@index([organizationId, status])
+  @@map("members")
+}
+
+/// Roles base: organization_id = null (plantilla de plataforma, compartida por
+/// todas las orgs). Roles personalizados: organization_id = la org.
+/// SQL: UNIQUE (key) WHERE organization_id IS NULL.
+model Role {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  key            String // owner | admin | payment_verifier | seller | slug del personalizado
+  name           String // «Propietario», «Verificador de pagos»…
+  description    String?
+  isSystem       Boolean   @default(false) @map("is_system")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
+
+  organization Organization?    @relation(fields: [organizationId], references: [id])
+  permissions  RolePermission[]
+  members      Member[]
+
+  @@unique([organizationId, key])
+  @@map("roles")
+}
+
+/// Catálogo de claves de permiso (seed). Incluye org y platform.
+model Permission {
+  key         String  @id // raffles.view, platform.orgs.read, ...
+  scope       String // org | platform
+  group       String // Sorteos, Pagos, Participantes, ...
+  description String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId        String @map("role_id") @db.Uuid
+  permissionKey String @map("permission_key")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key])
+
+  @@id([roleId, permissionKey])
+  @@map("role_permissions")
+}
+
+/// Ajustes por sección. `data` se valida con un esquema zod por sección y
+/// versión (`schemaVersion`); `revision` sirve de control de concurrencia.
+model OrgSettings {
+  organizationId String          @map("organization_id") @db.Uuid
+  section        SettingsSection
+  schemaVersion  Int             @default(1) @map("schema_version")
+  revision       Int             @default(1)
+  data           Json
+  updatedById    String?         @map("updated_by_id") @db.Uuid
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@id([organizationId, section])
+  @@map("org_settings")
+}
+
+model PaymentAccount {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  type           PaymentAccountType
+  keyOrNumber    String             @map("key_or_number")
+  holderName     String             @map("holder_name")
+  bankName       String?            @map("bank_name") // solo bank_transfer
+  accountKind    String?            @map("account_kind") // ahorros | corriente (solo bank_transfer)
+  isActive       Boolean            @default(true) @map("is_active")
+  sortOrder      Int                @default(0) @map("sort_order")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  raffles      RafflePaymentAccount[]
+
+  @@index([organizationId, isActive])
+  @@map("payment_accounts")
+}
+
+// =============================================================================
+// SORTEOS
+// =============================================================================
+
+model Raffle {
+  id                  String       @id @default(uuid()) @db.Uuid
+  organizationId      String       @map("organization_id") @db.Uuid
+  sequence            Int // n.º de sorteo dentro de la org (0042 en RS-0042-07)
+  slug                String       @db.Citext
+  title               String
+  lottery             String // «Lotería de Boyacá»
+  drawAt              DateTime     @map("draw_at") @db.Timestamptz
+  salesCloseAt        DateTime?    @map("sales_close_at") @db.Timestamptz // hora límite de la condición
+  coverImageKey       String?      @map("cover_image_key")
+  pricePerNumber      Int          @map("price_per_number")
+  digits              Int // SQL: CHECK (digits IN (2,3,4))
+  totalNumbers        Int          @map("total_numbers") // 10^digits, fijado al crear
+  minPerOrder         Int          @default(1) @map("min_per_order")
+  accentColor         String?      @map("accent_color") // null = color por defecto de la org
+  conditionText       String?      @map("condition_text")
+  authorizationNumber String?      @map("authorization_number")
+  status              RaffleStatus @default(draft)
+  // Contadores desnormalizados, actualizados en las mismas transacciones
+  paidCount           Int          @default(0) @map("paid_count")
+  heldCount           Int          @default(0) @map("held_count") // reserved + pending_verification
+  publishedAt         DateTime?    @map("published_at") @db.Timestamptz
+  closedAt            DateTime?    @map("closed_at") @db.Timestamptz
+  drawnAt             DateTime?    @map("drawn_at") @db.Timestamptz
+  resultsPublishedAt  DateTime?    @map("results_published_at") @db.Timestamptz
+  cancelledAt         DateTime?    @map("cancelled_at") @db.Timestamptz
+  cancelReason        String?      @map("cancel_reason")
+  duplicatedFromId    String?      @map("duplicated_from_id") @db.Uuid
+  createdById         String?      @map("created_by_id") @db.Uuid
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt           DateTime?    @map("deleted_at") @db.Timestamptz
+
+  organization    Organization           @relation(fields: [organizationId], references: [id])
+  prizes          Prize[]
+  numbers         RaffleNumber[]
+  orders          Order[]
+  tickets         Ticket[]
+  drawResult      DrawResult?
+  winners         Winner[]
+  paymentAccounts RafflePaymentAccount[]
+
+  @@unique([organizationId, slug])
+  @@unique([organizationId, sequence])
+  @@index([organizationId, status])
+  @@index([status, salesCloseAt])
+  @@index([status, drawAt])
+  @@map("raffles")
+}
+
+/// Cuentas de pago que se muestran en un sorteo (por defecto, todas las activas).
+model RafflePaymentAccount {
+  raffleId         String @map("raffle_id") @db.Uuid
+  paymentAccountId String @map("payment_account_id") @db.Uuid
+  organizationId   String @map("organization_id") @db.Uuid
+
+  raffle         Raffle         @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  paymentAccount PaymentAccount @relation(fields: [paymentAccountId], references: [id])
+
+  @@id([raffleId, paymentAccountId])
+  @@map("raffle_payment_accounts")
+}
+
+model Prize {
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  raffleId           String    @map("raffle_id") @db.Uuid
+  position           Int // orden de visualización
+  amountCop          Int?      @map("amount_cop") // monto o descripción (al menos uno)
+  description        String?
+  rule               PrizeRule
+  customRuleText     String?   @map("custom_rule_text") // texto visible cuando rule = custom
+  anticipatedLottery String?   @map("anticipated_lottery") // «Antioqueñita»
+  anticipatedDrawAt  DateTime? @map("anticipated_draw_at") @db.Timestamptz // 4:00 p. m.
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  raffle  Raffle   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  winners Winner[]
+
+  // SQL: CHECK (amount_cop IS NOT NULL OR description IS NOT NULL)
+  // SQL: CHECK (rule NOT IN ('anticipated_last_two','anticipated_full_number') OR anticipated_lottery IS NOT NULL)
+  @@unique([raffleId, position])
+  @@map("prizes")
+}
+
+/// Una fila por número; se crean al publicar (100 / 1.000 / 10.000).
+/// El apartado es un UPDATE … WHERE status = 'available' sobre estas filas.
+model RaffleNumber {
+  raffleId       String       @map("raffle_id") @db.Uuid
+  number         Int
+  organizationId String       @map("organization_id") @db.Uuid
+  status         NumberStatus @default(available)
+  orderId        String?      @map("order_id") @db.Uuid
+  reservedUntil  DateTime?    @map("reserved_until") @db.Timestamptz
+  paidAt         DateTime?    @map("paid_at") @db.Timestamptz
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  order  Order? @relation(fields: [orderId], references: [id])
+
+  // SQL: CHECK ((status = 'available') = (order_id IS NULL))
+  @@id([raffleId, number])
+  @@index([raffleId, status])
+  @@index([orderId])
+  @@map("raffle_numbers")
+}
+
+// =============================================================================
+// PARTICIPANTES Y ÓRDENES
+// =============================================================================
+
+model Participant {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  phone          String // E.164
+  name           String
+  nickname       String? // para nameFormat = nickname
+  referralCode   String?   @map("referral_code") // solo si se aprueba P5
+  referredById   String?   @map("referred_by_id") @db.Uuid
+  firstSeenAt    DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  referredBy   Participant?  @relation("Referrals", fields: [referredById], references: [id])
+  referrals    Participant[] @relation("Referrals")
+  orders       Order[]
+  tickets      Ticket[]
+  winners      Winner[]
+  pointsEvents PointsEvent[]
+
+  @@unique([organizationId, phone])
+  @@unique([organizationId, referralCode])
+  @@index([organizationId, name])
+  @@map("participants")
+}
+
+model Order {
+  id                  String      @id @default(uuid()) @db.Uuid
+  organizationId      String      @map("organization_id") @db.Uuid
+  raffleId            String      @map("raffle_id") @db.Uuid
+  participantId       String      @map("participant_id") @db.Uuid
+  numbers             Int[] // copia histórica; el dueño vigente vive en raffle_numbers.order_id
+  unitPrice           Int         @map("unit_price")
+  totalCop            Int         @map("total_cop")
+  sellerMemberId      String?     @map("seller_member_id") @db.Uuid
+  sellerCode          String?     @map("seller_code")
+  status              OrderStatus @default(reserved)
+  reservedUntil       DateTime    @map("reserved_until") @db.Timestamptz
+  /// Hash del token que se entrega al participante para operar su orden sin cuenta.
+  accessTokenHash     String      @map("access_token_hash")
+  idempotencyKey      String?     @map("idempotency_key")
+  receiptKey          String?     @map("receipt_key")
+  receiptMime         String?     @map("receipt_mime")
+  receiptSize         Int?        @map("receipt_size")
+  receiptUploadedAt   DateTime?   @map("receipt_uploaded_at") @db.Timestamptz
+  verifiedById        String?     @map("verified_by_id") @db.Uuid // Member
+  verifiedAt          DateTime?   @map("verified_at") @db.Timestamptz
+  rejectionReason     String?     @map("rejection_reason")
+  releasedById        String?     @map("released_by_id") @db.Uuid
+  releasedAt          DateTime?   @map("released_at") @db.Timestamptz
+  releaseReason       String?     @map("release_reason")
+  expiredAt           DateTime?   @map("expired_at") @db.Timestamptz
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  raffle        Raffle         @relation(fields: [raffleId], references: [id])
+  participant   Participant    @relation(fields: [participantId], references: [id])
+  seller        Member?        @relation("SellerOrders", fields: [sellerMemberId], references: [id])
+  heldNumbers   RaffleNumber[]
+  tickets       Ticket[]
+  pointsEvents  PointsEvent[]
+
+  @@unique([raffleId, idempotencyKey])
+  @@index([organizationId, status, receiptUploadedAt]) // cola: más antiguos primero
+  @@index([status, reservedUntil]) // expire-reservations
+  @@index([raffleId, status])
+  @@index([participantId])
+  @@index([organizationId, sellerMemberId, createdAt])
+  @@map("orders")
+}
+
+model Ticket {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  raffleId       String       @map("raffle_id") @db.Uuid
+  orderId        String       @map("order_id") @db.Uuid
+  participantId  String       @map("participant_id") @db.Uuid
+  number         Int
+  code           String // RS-0042-07
+  status         TicketStatus @default(valid)
+  issuedAt       DateTime     @default(now()) @map("issued_at") @db.Timestamptz
+  voidedAt       DateTime?    @map("voided_at") @db.Timestamptz
+
+  raffle      Raffle      @relation(fields: [raffleId], references: [id])
+  order       Order       @relation(fields: [orderId], references: [id])
+  participant Participant @relation(fields: [participantId], references: [id])
+  winners     Winner[]
+
+  // SQL: UNIQUE (raffle_id, number) WHERE status = 'valid'
+  // SQL: UNIQUE (organization_id, code) WHERE status = 'valid'
+  @@index([participantId])
+  @@index([orderId])
+  @@map("tickets")
+}
+
+/// «Avísame del próximo sorteo».
+model NotifyMeSubscription {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  participantId  String    @map("participant_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  unsubscribedAt DateTime? @map("unsubscribed_at") @db.Timestamptz
+  lastNotifiedAt DateTime? @map("last_notified_at") @db.Timestamptz
+
+  @@unique([organizationId, participantId])
+  @@map("notify_me_subscriptions")
+}
+
+/// OTP de «Mis boletos» (código de 6 dígitos por WhatsApp).
+model OtpChallenge {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  phone          String // E.164
+  codeHash       String    @map("code_hash") // HMAC-SHA256 con pepper
+  attempts       Int       @default(0)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  consumedAt     DateTime? @map("consumed_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([organizationId, phone, createdAt(sort: Desc)])
+  @@map("otp_challenges")
+}
+
+// =============================================================================
+// RESULTADOS Y GANADORES
+// =============================================================================
+
+model DrawResult {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  raffleId          String    @unique @map("raffle_id") @db.Uuid
+  mainResult        String    @map("main_result") // 4 dígitos como texto (conserva ceros). SQL: CHECK (main_result ~ '^\d{4}$')
+  anticipatedResult String?   @map("anticipated_result") // SQL: CHECK (anticipated_result ~ '^\d{4}$')
+  /// Números ganadores ingresados a mano para premios `custom`: [{ prizeId, number }]
+  customWinners     Json?     @map("custom_winners")
+  evidenceKeys      String[]  @map("evidence_keys") // fotos / video
+  enteredById       String    @map("entered_by_id") @db.Uuid
+  enteredAt         DateTime  @default(now()) @map("entered_at") @db.Timestamptz
+  revision          Int       @default(1) // cada corrección incrementa y se audita
+  publishedAt       DateTime? @map("published_at") @db.Timestamptz
+  winnersNotifiedAt DateTime? @map("winners_notified_at") @db.Timestamptz
+
+  raffle  Raffle   @relation(fields: [raffleId], references: [id])
+  winners Winner[]
+
+  @@map("draw_results")
+}
+
+model Winner {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  raffleId       String              @map("raffle_id") @db.Uuid
+  prizeId        String              @map("prize_id") @db.Uuid
+  drawResultId   String              @map("draw_result_id") @db.Uuid
+  number         Int // número ganador dentro del sorteo
+  unsold         Boolean             @default(false) // «No vendido»
+  participantId  String?             @map("participant_id") @db.Uuid
+  ticketId       String?             @map("ticket_id") @db.Uuid
+  deliveryStatus PrizeDeliveryStatus @default(pending) @map("delivery_status")
+  deliveredAt    DateTime?           @map("delivered_at") @db.Timestamptz
+  deliveredById  String?             @map("delivered_by_id") @db.Uuid
+  deliveryNote   String?             @map("delivery_note")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  raffle      Raffle       @relation(fields: [raffleId], references: [id])
+  prize       Prize        @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  drawResult  DrawResult   @relation(fields: [drawResultId], references: [id], onDelete: Cascade)
+  participant Participant? @relation(fields: [participantId], references: [id])
+  ticket      Ticket?      @relation(fields: [ticketId], references: [id])
+
+  // SQL: CHECK (unsold = (participant_id IS NULL))
+  @@unique([prizeId, number])
+  @@index([raffleId])
+  @@map("winners")
+}
+
+// =============================================================================
+// RANKING
+// =============================================================================
+
+model RankingPeriod {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  frequency      RankingFrequency
+  label          String // «2026-10», «2026-10-16», «2026-W43» (para la URL pública)
+  startsAt       DateTime            @map("starts_at") @db.Timestamptz // 00:00 local → UTC
+  endsAt         DateTime            @map("ends_at") @db.Timestamptz // exclusivo
+  status         RankingPeriodStatus @default(open)
+  closedAt       DateTime?           @map("closed_at") @db.Timestamptz
+  /// Top final congelado al cerrar: [{ rank, participantId, displayName, maskedPhone, points, raffles, reachedAt }]
+  snapshot       Json?
+  /// Configuración usada para calcular (puntos, bonos, desempate) congelada al cerrar.
+  configSnapshot Json?               @map("config_snapshot")
+  announcedAt    DateTime?           @map("announced_at") @db.Timestamptz
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  events       PointsEvent[]
+
+  // SQL: UNIQUE (organization_id) WHERE status = 'open'
+  // SQL: EXCLUDE USING gist (organization_id WITH =, tstzrange(starts_at, ends_at) WITH &&)
+  @@unique([organizationId, startsAt])
+  @@unique([organizationId, label])
+  @@index([organizationId, status])
+  @@map("ranking_periods")
+}
+
+/// Libro de puntos inmutable. SQL: trigger que rechaza UPDATE/DELETE.
+/// Las reversiones se registran como eventos con puntos negativos.
+model PointsEvent {
+  id             BigInt       @id @default(autoincrement())
+  organizationId String       @map("organization_id") @db.Uuid
+  periodId       String       @map("period_id") @db.Uuid
+  participantId  String       @map("participant_id") @db.Uuid
+  points         Int // puede ser negativo (ajuste o reversión)
+  reason         PointsReason
+  orderId        String?      @map("order_id") @db.Uuid
+  raffleId       String?      @map("raffle_id") @db.Uuid
+  actorMemberId  String?      @map("actor_member_id") @db.Uuid // ajustes manuales
+  note           String? // motivo del ajuste manual (obligatorio en ese caso)
+  /// Clave de idempotencia: «order:{id}:paid», «bonus:consistency:{period}:{participant}», …
+  idempotencyKey String       @unique @map("idempotency_key")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  period      RankingPeriod @relation(fields: [periodId], references: [id])
+  participant Participant   @relation(fields: [participantId], references: [id])
+  order       Order?        @relation(fields: [orderId], references: [id])
+
+  @@index([periodId, participantId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("points_events")
+}
+
+// =============================================================================
+// MENSAJERÍA
+// =============================================================================
+
+model MessageLog {
+  id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String?       @map("organization_id") @db.Uuid
+  template          String // ticket_confirmed, payment_rejected, otp_code, draw_reminder, ranking_top10, ...
+  channel           String        @default("whatsapp")
+  toPhone           String        @map("to_phone") // E.164 (en logs de aplicación siempre enmascarado)
+  participantId     String?       @map("participant_id") @db.Uuid
+  variables         Json? // parámetros de la plantilla
+  status            MessageStatus @default(queued)
+  provider          String        @default("meta_cloud")
+  providerMessageId String?       @unique @map("provider_message_id")
+  error             String?
+  quotaUnits        Int           @default(1) @map("quota_units") // costo contra la cuota del plan
+  quotaPeriod       String        @map("quota_period") // «2026-10» en la zona de la org
+  idempotencyKey    String        @unique @map("idempotency_key") // p. ej. «ticket:{orderId}»
+  attempts          Int           @default(0)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  sentAt            DateTime?     @map("sent_at") @db.Timestamptz
+  deliveredAt       DateTime?     @map("delivered_at") @db.Timestamptz
+  readAt            DateTime?     @map("read_at") @db.Timestamptz
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, quotaPeriod, status])
+  @@map("message_logs")
+}
+
+/// Contador atómico de consumo (cuota de WhatsApp por mes).
+/// Reserva: UPDATE … SET used = used + n WHERE used + n <= limit.
+model UsageCounter {
+  organizationId String      @map("organization_id") @db.Uuid
+  metric         UsageMetric
+  period         String // «2026-10»
+  used           Int         @default(0)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@id([organizationId, metric, period])
+  @@map("usage_counters")
+}
+
+/// Idempotencia de jobs programados (close-sales, draw-reminder, rollover,
+/// daily-digest): un registro por (job, clave) ejecutado con éxito.
+model JobRun {
+  job         String
+  key         String // p. ej. «raffle:{id}:{salesCloseAt}», «org:{id}:2026-10-25»
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz
+
+  @@id([job, key])
+  @@map("job_runs")
+}

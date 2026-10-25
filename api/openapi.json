@@ -1,0 +1,5966 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Salud"
+        ]
+      }
+    },
+    "/v1/auth/signup": {
+      "post": {
+        "operationId": "AuthController_signup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/2fa/setup": {
+      "post": {
+        "operationId": "AuthController_setup2fa",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/2fa/enable": {
+      "post": {
+        "operationId": "AuthController_enable2fa",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/2fa/disable": {
+      "post": {
+        "operationId": "AuthController_disable2fa",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Disable2faDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/password/forgot": {
+      "post": {
+        "operationId": "AuthController_forgot",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/password/reset": {
+      "post": {
+        "operationId": "AuthController_reset",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/invitations/{token}": {
+      "get": {
+        "operationId": "InvitationsController_preview",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/invitations/{token}/accept": {
+      "post": {
+        "operationId": "InvitationsController_accept",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/auth/login": {
+      "post": {
+        "operationId": "PlatformAuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/auth/2fa/enroll": {
+      "post": {
+        "operationId": "PlatformAuthController_enroll",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformChallengeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/auth/2fa/verify": {
+      "post": {
+        "operationId": "PlatformAuthController_verify",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/auth/refresh": {
+      "post": {
+        "operationId": "PlatformAuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/auth/logout": {
+      "post": {
+        "operationId": "PlatformAuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/platform/me": {
+      "get": {
+        "operationId": "PlatformMeController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Autenticación"
+        ]
+      }
+    },
+    "/v1/settings": {
+      "get": {
+        "operationId": "SettingsController_all",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      }
+    },
+    "/v1/settings/{section}": {
+      "get": {
+        "operationId": "SettingsController_one",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "section",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      },
+      "put": {
+        "operationId": "SettingsController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "section",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      }
+    },
+    "/v1/organization": {
+      "get": {
+        "operationId": "OrganizationController_get",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Organización"
+        ]
+      },
+      "patch": {
+        "operationId": "OrganizationController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Organización"
+        ]
+      }
+    },
+    "/v1/organization/custom-domain": {
+      "put": {
+        "operationId": "OrganizationController_customDomain",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomDomainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Organización"
+        ]
+      }
+    },
+    "/v1/organization/logo": {
+      "post": {
+        "operationId": "OrganizationController_logo",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Organización"
+        ]
+      }
+    },
+    "/v1/organization/logo/confirm": {
+      "post": {
+        "operationId": "OrganizationController_logoConfirm",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Organización"
+        ]
+      }
+    },
+    "/v1/team": {
+      "get": {
+        "operationId": "TeamController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/team/invitations": {
+      "post": {
+        "operationId": "TeamController_invite",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/team/members/{id}": {
+      "patch": {
+        "operationId": "TeamController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      },
+      "delete": {
+        "operationId": "TeamController_remove",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/team/members/{id}/resend-invitation": {
+      "post": {
+        "operationId": "TeamController_resend",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/roles": {
+      "get": {
+        "operationId": "RolesController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      },
+      "post": {
+        "operationId": "RolesController_create",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/roles/{id}": {
+      "patch": {
+        "operationId": "RolesController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      },
+      "delete": {
+        "operationId": "RolesController_remove",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/permissions": {
+      "get": {
+        "operationId": "PermissionsCatalogController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Equipo"
+        ]
+      }
+    },
+    "/v1/payment-accounts": {
+      "get": {
+        "operationId": "PaymentAccountsController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      },
+      "post": {
+        "operationId": "PaymentAccountsController_create",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      }
+    },
+    "/v1/payment-accounts/{id}": {
+      "patch": {
+        "operationId": "PaymentAccountsController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      },
+      "delete": {
+        "operationId": "PaymentAccountsController_remove",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ajustes"
+        ]
+      }
+    },
+    "/v1/raffles": {
+      "get": {
+        "operationId": "RafflesController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "active",
+                "sold_out",
+                "closed",
+                "drawn",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      },
+      "post": {
+        "operationId": "RafflesController_create",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRaffleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}": {
+      "get": {
+        "operationId": "RafflesController_get",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      },
+      "patch": {
+        "operationId": "RafflesController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRaffleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      },
+      "delete": {
+        "operationId": "RafflesController_remove",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/prizes": {
+      "put": {
+        "operationId": "RafflesController_prizes",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplacePrizesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/cover": {
+      "post": {
+        "operationId": "RafflesController_cover",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/cover/confirm": {
+      "post": {
+        "operationId": "RafflesController_coverConfirm",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/publish": {
+      "post": {
+        "operationId": "RafflesController_publish",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/close-sales": {
+      "post": {
+        "operationId": "RafflesController_closeSales",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/duplicate": {
+      "post": {
+        "operationId": "RafflesController_duplicate",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateRaffleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/cancel": {
+      "post": {
+        "operationId": "RafflesController_cancel",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRaffleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/numbers": {
+      "get": {
+        "operationId": "RafflesController_numbers",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/participants": {
+      "get": {
+        "operationId": "ParticipantsController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "exclusiveMaximum": false,
+              "exclusiveMinimum": false,
+              "default": 30,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Participantes"
+        ]
+      }
+    },
+    "/v1/participants/export.csv": {
+      "get": {
+        "operationId": "ParticipantsController_export",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Participantes"
+        ]
+      }
+    },
+    "/v1/participants/{id}": {
+      "get": {
+        "operationId": "ParticipantsController_detail",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Participantes"
+        ]
+      }
+    },
+    "/v1/payments/queue": {
+      "get": {
+        "operationId": "OrdersController_queue",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/orders": {
+      "get": {
+        "operationId": "OrdersController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "exclusiveMaximum": false,
+              "exclusiveMinimum": false,
+              "default": 30,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "raffleId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "reserved",
+                "pending_verification",
+                "approved",
+                "rejected",
+                "expired",
+                "released"
+              ]
+            }
+          },
+          {
+            "name": "sellerMemberId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/orders/{id}": {
+      "get": {
+        "operationId": "OrdersController_detail",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/orders/{id}/approve": {
+      "post": {
+        "operationId": "OrdersController_approve",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/orders/{id}/reject": {
+      "post": {
+        "operationId": "OrdersController_reject",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/orders/{id}/release": {
+      "post": {
+        "operationId": "OrdersController_release",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/sales/mine": {
+      "get": {
+        "operationId": "OrdersController_salesMine",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/results/notify": {
+      "post": {
+        "operationId": "ResultsController_notify",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/result": {
+      "put": {
+        "operationId": "ResultsController_enter",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnterResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/result/evidence": {
+      "post": {
+        "operationId": "ResultsController_evidence",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/result/evidence/confirm": {
+      "post": {
+        "operationId": "ResultsController_evidenceConfirm",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/winners/recalculate": {
+      "post": {
+        "operationId": "ResultsController_recalculate",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/winners": {
+      "get": {
+        "operationId": "ResultsController_winners",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/winners/{id}/deliver": {
+      "post": {
+        "operationId": "ResultsController_deliver",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/results/publish": {
+      "post": {
+        "operationId": "ResultsController_publish",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Resultados"
+        ]
+      }
+    },
+    "/v1/ranking/periods/{id}/announce": {
+      "post": {
+        "operationId": "RankingController_announce",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/ranking/current": {
+      "get": {
+        "operationId": "RankingController_current",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/ranking/periods": {
+      "get": {
+        "operationId": "RankingController_periods",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/ranking/periods/{id}": {
+      "get": {
+        "operationId": "RankingController_period",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/ranking/periods/{id}/export.csv": {
+      "get": {
+        "operationId": "RankingController_export",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/ranking/adjustments": {
+      "post": {
+        "operationId": "RankingController_adjust",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Ranking"
+        ]
+      }
+    },
+    "/v1/public/domains/{host}": {
+      "get": {
+        "operationId": "PublicController_domain",
+        "parameters": [
+          {
+            "name": "host",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/ranking": {
+      "get": {
+        "operationId": "PublicController_rankingPublic",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "current",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/raffles/{raffleSlug}/results": {
+      "get": {
+        "operationId": "PublicController_raffleResults",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}": {
+      "get": {
+        "operationId": "PublicController_organization",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/raffles/{raffleSlug}": {
+      "get": {
+        "operationId": "PublicController_raffle",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/raffles/{raffleSlug}/numbers": {
+      "get": {
+        "operationId": "PublicController_numbers",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "all",
+                "available"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/raffles/{raffleSlug}/orders": {
+      "post": {
+        "operationId": "PublicController_reserve",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "raffleSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}": {
+      "get": {
+        "operationId": "PublicController_order",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/receipt": {
+      "post": {
+        "operationId": "PublicController_receipt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/receipt/confirm": {
+      "post": {
+        "operationId": "PublicController_receiptConfirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/notify-me": {
+      "post": {
+        "operationId": "PublicController_notifyMe",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyMeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/my-tickets/otp": {
+      "post": {
+        "operationId": "MyTicketsController_otp",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público · Mis boletos"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/my-tickets/verify": {
+      "post": {
+        "operationId": "MyTicketsController_verify",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público · Mis boletos"
+        ]
+      }
+    },
+    "/v1/public/orgs/{orgSlug}/my-tickets": {
+      "get": {
+        "operationId": "MyTicketsController_view",
+        "parameters": [
+          {
+            "name": "orgSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Público · Mis boletos"
+        ]
+      }
+    },
+    "/v1/billing": {
+      "get": {
+        "operationId": "BillingController_overview",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/plans": {
+      "get": {
+        "operationId": "BillingController_plans",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/invoices": {
+      "get": {
+        "operationId": "BillingController_invoices",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/checkout": {
+      "post": {
+        "operationId": "BillingController_checkout",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/portal": {
+      "post": {
+        "operationId": "BillingController_portal",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/platform/stats": {
+      "get": {
+        "operationId": "PlatformOrgsController_stats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs": {
+      "get": {
+        "operationId": "PlatformOrgsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "x-enumNames": [
+              "trial",
+              "active",
+              "past_due",
+              "suspended"
+            ],
+            "schema": {
+              "type": "string",
+              "enum": [
+                "trial",
+                "active",
+                "past_due",
+                "suspended"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "exclusiveMaximum": false,
+              "exclusiveMinimum": false,
+              "default": 30,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformOrgsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrgDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs/{id}": {
+      "get": {
+        "operationId": "PlatformOrgsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      },
+      "patch": {
+        "operationId": "PlatformOrgsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrgDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs/{id}/suspend": {
+      "post": {
+        "operationId": "PlatformOrgsController_suspend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs/{id}/reactivate": {
+      "post": {
+        "operationId": "PlatformOrgsController_reactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs/{id}/subscription": {
+      "put": {
+        "operationId": "PlatformOrgsController_subscription",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/orgs/{id}/support-sessions": {
+      "post": {
+        "operationId": "PlatformOrgsController_support",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/support-sessions/{id}": {
+      "delete": {
+        "operationId": "PlatformOrgsController_endSupport",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Organizaciones"
+        ]
+      }
+    },
+    "/v1/platform/plans": {
+      "get": {
+        "operationId": "PlatformAdminController_plans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformAdminController_createPlan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/plans/{id}": {
+      "patch": {
+        "operationId": "PlatformAdminController_updatePlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      },
+      "delete": {
+        "operationId": "PlatformAdminController_archivePlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/trial-config": {
+      "get": {
+        "operationId": "PlatformAdminController_trialConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      },
+      "put": {
+        "operationId": "PlatformAdminController_updateTrialConfig",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrialConfigDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/permission-catalog": {
+      "get": {
+        "operationId": "PlatformAdminController_permissionCatalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/role-templates": {
+      "get": {
+        "operationId": "PlatformAdminController_roleTemplates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/role-templates/{roleKey}/permissions": {
+      "put": {
+        "operationId": "PlatformAdminController_setTemplate",
+        "parameters": [
+          {
+            "name": "roleKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplatePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/team": {
+      "get": {
+        "operationId": "PlatformAdminController_team",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformAdminController_addTeam",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlatformUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/team/{id}": {
+      "patch": {
+        "operationId": "PlatformAdminController_updateTeam",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/role-permissions/{role}": {
+      "put": {
+        "operationId": "PlatformAdminController_setRolePermissions",
+        "parameters": [
+          {
+            "name": "role",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformPermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/me/password": {
+      "post": {
+        "operationId": "PlatformAdminController_password",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Planes, roles y equipo"
+        ]
+      }
+    },
+    "/v1/platform/billing/subscriptions": {
+      "get": {
+        "operationId": "PlatformBillingController_subscriptions",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "trialing",
+                "active",
+                "past_due",
+                "canceled",
+                "incomplete"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Facturación y actividad"
+        ]
+      }
+    },
+    "/v1/platform/billing/failed-payments": {
+      "get": {
+        "operationId": "PlatformBillingController_failed",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Facturación y actividad"
+        ]
+      }
+    },
+    "/v1/platform/billing/events": {
+      "get": {
+        "operationId": "PlatformBillingController_events",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Facturación y actividad"
+        ]
+      }
+    },
+    "/v1/platform/billing/events/{id}/retry": {
+      "post": {
+        "operationId": "PlatformBillingController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Facturación y actividad"
+        ]
+      }
+    },
+    "/v1/platform/audit-logs": {
+      "get": {
+        "operationId": "PlatformBillingController_audit",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform_user",
+                "user",
+                "participant",
+                "system"
+              ]
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 80,
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 60,
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^\\d+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "exclusiveMaximum": false,
+              "exclusiveMinimum": false,
+              "default": 50,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plataforma · Facturación y actividad"
+        ]
+      }
+    },
+    "/v1/dashboard": {
+      "get": {
+        "operationId": "DashboardController_get",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Rifa Star API",
+    "description": "API de Rifa Star: sorteos, pagos, ganadores, ranking y plataforma. Errores: { code, message, details }.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "SignupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "organization": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 120
+              },
+              "slug": {
+                "type": "string",
+                "pattern": "^[a-z0-9](-?[a-z0-9])+$",
+                "minLength": 3,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "name",
+              "slug"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password",
+          "organization"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "totpCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "TotpCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "Disable2faDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "code",
+          "password"
+        ]
+      },
+      "ForgotPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 200
+          },
+          "password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ]
+      },
+      "AcceptInvitationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "PlatformLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "PlatformChallengeDto": {
+        "type": "object",
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "minLength": 10
+          }
+        },
+        "required": [
+          "challengeToken"
+        ]
+      },
+      "PlatformVerifyDto": {
+        "type": "object",
+        "properties": {
+          "challengeToken": {
+            "type": "string",
+            "minLength": 10
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "challengeToken",
+          "code"
+        ]
+      },
+      "UpdateSettingsDto": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "revision",
+          "data"
+        ]
+      },
+      "UpdateOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "supportWhatsapp": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20,
+            "nullable": true
+          },
+          "defaultAccentColor": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        }
+      },
+      "CustomDomainDto": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "pattern": "^(?=.{4,253}$)([a-z0-9](-?[a-z0-9])*\\.)+[a-z]{2,}$",
+            "nullable": true
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      },
+      "UploadRequestDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          }
+        },
+        "required": [
+          "contentType",
+          "size"
+        ]
+      },
+      "UploadConfirmDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "InviteMemberDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sellerCode": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,20}$"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "roleId"
+        ]
+      },
+      "UpdateMemberDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sellerCode": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{2,20}$",
+            "nullable": true
+          }
+        }
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "permissions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "raffles.view",
+                "raffles.edit",
+                "raffles.publish",
+                "raffles.delete",
+                "payments.view",
+                "payments.approve",
+                "payments.release",
+                "participants.view_contact",
+                "participants.export",
+                "sales.view_own",
+                "ranking.configure",
+                "winners.announce",
+                "settings.brand",
+                "settings.team",
+                "settings.billing"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "nullable": true
+          },
+          "permissions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "raffles.view",
+                "raffles.edit",
+                "raffles.publish",
+                "raffles.delete",
+                "payments.view",
+                "payments.approve",
+                "payments.release",
+                "participants.view_contact",
+                "participants.export",
+                "sales.view_own",
+                "ranking.configure",
+                "winners.announce",
+                "settings.brand",
+                "settings.team",
+                "settings.billing"
+              ]
+            }
+          }
+        }
+      },
+      "CreatePaymentAccountDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "bre_b",
+              "nequi",
+              "daviplata",
+              "bank_transfer"
+            ],
+            "x-enumNames": [
+              "bre_b",
+              "nequi",
+              "daviplata",
+              "bank_transfer"
+            ]
+          },
+          "keyOrNumber": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 60
+          },
+          "holderName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "bankName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80,
+            "nullable": true
+          },
+          "accountKind": {
+            "type": "string",
+            "enum": [
+              "ahorros",
+              "corriente"
+            ],
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100,
+            "exclusiveMaximum": false
+          }
+        },
+        "required": [
+          "type",
+          "keyOrNumber",
+          "holderName"
+        ]
+      },
+      "UpdatePaymentAccountDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "bre_b",
+              "nequi",
+              "daviplata",
+              "bank_transfer"
+            ],
+            "x-enumNames": [
+              "bre_b",
+              "nequi",
+              "daviplata",
+              "bank_transfer"
+            ]
+          },
+          "keyOrNumber": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 60
+          },
+          "holderName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "bankName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80,
+            "nullable": true
+          },
+          "accountKind": {
+            "type": "string",
+            "enum": [
+              "ahorros",
+              "corriente"
+            ],
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100,
+            "exclusiveMaximum": false
+          }
+        }
+      },
+      "CreateRaffleDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](-?[a-z0-9])+$",
+            "maxLength": 60
+          },
+          "lottery": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "drawAt": {},
+          "salesCloseAt": {
+            "nullable": true
+          },
+          "pricePerNumber": {
+            "type": "integer",
+            "minimum": 100,
+            "exclusiveMinimum": false,
+            "maximum": 100000000,
+            "exclusiveMaximum": false
+          },
+          "digits": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 2,
+                "maximum": 2
+              },
+              {
+                "type": "number",
+                "minimum": 3,
+                "maximum": 3
+              },
+              {
+                "type": "number",
+                "minimum": 4,
+                "maximum": 4
+              }
+            ]
+          },
+          "minPerOrder": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 500,
+            "exclusiveMaximum": false,
+            "default": 1
+          },
+          "accentColor": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "nullable": true
+          },
+          "conditionText": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "authorizationNumber": {
+            "type": "string",
+            "maxLength": 60,
+            "nullable": true
+          },
+          "prizes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "amountCop": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": true,
+                  "maximum": 10000000000,
+                  "exclusiveMaximum": false
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                "rule": {
+                  "type": "string",
+                  "enum": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ],
+                  "x-enumNames": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ]
+                },
+                "customRuleText": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "anticipatedLottery": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                "anticipatedDrawAt": {}
+              },
+              "required": [
+                "rule"
+              ]
+            },
+            "default": []
+          },
+          "paymentAccountIds": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "lottery",
+          "drawAt",
+          "pricePerNumber",
+          "digits"
+        ]
+      },
+      "UpdateRaffleDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](-?[a-z0-9])+$",
+            "maxLength": 60
+          },
+          "lottery": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "drawAt": {},
+          "salesCloseAt": {
+            "nullable": true
+          },
+          "pricePerNumber": {
+            "type": "integer",
+            "minimum": 100,
+            "exclusiveMinimum": false,
+            "maximum": 100000000,
+            "exclusiveMaximum": false
+          },
+          "digits": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 2,
+                "maximum": 2
+              },
+              {
+                "type": "number",
+                "minimum": 3,
+                "maximum": 3
+              },
+              {
+                "type": "number",
+                "minimum": 4,
+                "maximum": 4
+              }
+            ]
+          },
+          "minPerOrder": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 500,
+            "exclusiveMaximum": false,
+            "default": 1
+          },
+          "accentColor": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "nullable": true
+          },
+          "conditionText": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "authorizationNumber": {
+            "type": "string",
+            "maxLength": 60,
+            "nullable": true
+          },
+          "paymentAccountIds": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "ReplacePrizesDto": {
+        "type": "object",
+        "properties": {
+          "prizes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "amountCop": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": true,
+                  "maximum": 10000000000,
+                  "exclusiveMaximum": false
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                "rule": {
+                  "type": "string",
+                  "enum": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ],
+                  "x-enumNames": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ]
+                },
+                "customRuleText": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "anticipatedLottery": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                "anticipatedDrawAt": {}
+              },
+              "required": [
+                "rule"
+              ]
+            }
+          }
+        },
+        "required": [
+          "prizes"
+        ]
+      },
+      "DuplicateRaffleDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "drawAt": {}
+        }
+      },
+      "CancelRaffleDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ReasonDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "EnterResultDto": {
+        "type": "object",
+        "properties": {
+          "mainResult": {
+            "type": "string",
+            "pattern": "^\\d{4}$"
+          },
+          "anticipatedResult": {
+            "type": "string",
+            "pattern": "^\\d{4}$",
+            "nullable": true
+          },
+          "customWinners": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "prizeId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "number": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": false,
+                  "maximum": 9999,
+                  "exclusiveMaximum": false
+                }
+              },
+              "required": [
+                "prizeId",
+                "number"
+              ]
+            }
+          }
+        },
+        "required": [
+          "mainResult"
+        ]
+      },
+      "DeliverDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      },
+      "AdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "points": {
+            "type": "integer",
+            "minimum": -1000,
+            "exclusiveMinimum": false,
+            "maximum": 1000,
+            "exclusiveMaximum": false
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "participantId",
+          "points",
+          "reason"
+        ]
+      },
+      "ReserveDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20
+          },
+          "numbers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 500,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": false,
+              "maximum": 9999,
+              "exclusiveMaximum": false
+            }
+          },
+          "random": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 500,
+            "exclusiveMaximum": false
+          },
+          "sellerCode": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "nickname": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 30
+          },
+          "referralCode": {
+            "type": "string",
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ]
+      },
+      "ReceiptRequestDto": {
+        "type": "object",
+        "properties": {
+          "contentType": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+          }
+        },
+        "required": [
+          "contentType",
+          "size"
+        ]
+      },
+      "ReceiptConfirmDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        }
+      },
+      "NotifyMeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ]
+      },
+      "OtpRequestDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "OtpVerifyDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ]
+      },
+      "CheckoutDto": {
+        "type": "object",
+        "properties": {
+          "planCode": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "planCode"
+        ]
+      },
+      "CreateOrgDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](-?[a-z0-9])+$",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "ownerEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "ownerName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "planCode": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "ownerEmail",
+          "ownerName"
+        ]
+      },
+      "UpdateOrgDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](-?[a-z0-9])+$",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "customDomainVerified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ManualSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "planCode": {
+            "type": "string"
+          },
+          "periodEnd": {}
+        },
+        "required": [
+          "planCode"
+        ]
+      },
+      "SupportSessionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 5,
+            "exclusiveMinimum": false,
+            "maximum": 60,
+            "exclusiveMaximum": false,
+            "default": 30
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CreatePlanDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{2,40}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "monthlyPriceCop": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100000000,
+            "exclusiveMaximum": false
+          },
+          "maxActiveRaffles": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 10000,
+            "exclusiveMaximum": false,
+            "nullable": true
+          },
+          "maxMembers": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 10000,
+            "exclusiveMaximum": false
+          },
+          "monthlyWhatsappMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 10000000,
+            "exclusiveMaximum": false
+          },
+          "featureRanking": {
+            "type": "boolean"
+          },
+          "featureWhatsappAuto": {
+            "type": "boolean"
+          },
+          "featureSellers": {
+            "type": "boolean"
+          },
+          "featureCustomRoles": {
+            "type": "boolean"
+          },
+          "featureCustomDomain": {
+            "type": "boolean"
+          },
+          "featureWhiteLabel": {
+            "type": "boolean"
+          },
+          "externalPriceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "default": {}
+          },
+          "highlighted": {
+            "type": "boolean",
+            "default": false
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100,
+            "exclusiveMaximum": false,
+            "default": 0
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "monthlyPriceCop",
+          "maxActiveRaffles",
+          "maxMembers",
+          "monthlyWhatsappMessages",
+          "featureRanking",
+          "featureWhatsappAuto",
+          "featureSellers",
+          "featureCustomRoles",
+          "featureCustomDomain",
+          "featureWhiteLabel"
+        ]
+      },
+      "UpdatePlanDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "monthlyPriceCop": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100000000,
+            "exclusiveMaximum": false
+          },
+          "maxActiveRaffles": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 10000,
+            "exclusiveMaximum": false,
+            "nullable": true
+          },
+          "maxMembers": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 10000,
+            "exclusiveMaximum": false
+          },
+          "monthlyWhatsappMessages": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 10000000,
+            "exclusiveMaximum": false
+          },
+          "featureRanking": {
+            "type": "boolean"
+          },
+          "featureWhatsappAuto": {
+            "type": "boolean"
+          },
+          "featureSellers": {
+            "type": "boolean"
+          },
+          "featureCustomRoles": {
+            "type": "boolean"
+          },
+          "featureCustomDomain": {
+            "type": "boolean"
+          },
+          "featureWhiteLabel": {
+            "type": "boolean"
+          },
+          "externalPriceIds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "default": {}
+          },
+          "highlighted": {
+            "type": "boolean",
+            "default": false
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 100,
+            "exclusiveMaximum": false,
+            "default": 0
+          }
+        }
+      },
+      "TrialConfigDto": {
+        "type": "object",
+        "properties": {
+          "planCode": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 90,
+            "exclusiveMaximum": false
+          },
+          "onExpire": {
+            "type": "string",
+            "enum": [
+              "downgrade_to_plan",
+              "block_new_raffles"
+            ],
+            "x-enumNames": [
+              "downgrade_to_plan",
+              "block_new_raffles"
+            ]
+          },
+          "downgradePlanCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "pastDueGraceDays": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 60,
+            "exclusiveMaximum": false
+          }
+        },
+        "required": [
+          "planCode",
+          "days",
+          "onExpire",
+          "pastDueGraceDays"
+        ]
+      },
+      "TemplatePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "raffles.view",
+                "raffles.edit",
+                "raffles.publish",
+                "raffles.delete",
+                "payments.view",
+                "payments.approve",
+                "payments.release",
+                "participants.view_contact",
+                "participants.export",
+                "sales.view_own",
+                "ranking.configure",
+                "winners.announce",
+                "settings.brand",
+                "settings.team",
+                "settings.billing"
+              ]
+            }
+          }
+        },
+        "required": [
+          "permissions"
+        ]
+      },
+      "CreatePlatformUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "support",
+              "finance"
+            ],
+            "x-enumNames": [
+              "super_admin",
+              "support",
+              "finance"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "role"
+        ]
+      },
+      "UpdatePlatformUserDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "super_admin",
+              "support",
+              "finance"
+            ],
+            "x-enumNames": [
+              "super_admin",
+              "support",
+              "finance"
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlatformPermissionsDto": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "platform.orgs.read",
+                "platform.orgs.write",
+                "platform.plans.write",
+                "platform.billing.read",
+                "platform.billing.write",
+                "platform.roles.write",
+                "platform.impersonate"
+              ]
+            }
+          }
+        },
+        "required": [
+          "permissions"
+        ]
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      }
+    }
+  }
+}
