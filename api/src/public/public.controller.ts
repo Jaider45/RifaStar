@@ -9,6 +9,9 @@ import { OrdersService } from '../orders/orders.service';
 import { ReservationService } from '../orders/reservation.service';
 import { RateLimit } from '../rate-limit/rate-limit';
 import { ResultsService } from '../results/results.service';
+import { RankingService } from '../ranking/ranking.service';
+import { PERIOD_PARAM_RE } from '../ranking/periods';
+import { Errors } from '../common/errors';
 import { PublicAccessService } from './public-access.service';
 import { PublicRafflesService } from './public-raffles.service';
 
@@ -16,6 +19,8 @@ class NumbersQuery extends createZodDto(z.object({ status: z.enum(['all', 'avail
 class NotifyMeDto extends createZodDto(
   z.object({ name: z.string().trim().min(2).max(80), phone: z.string().trim().min(7).max(20) }),
 ) {}
+
+class RankingQuery extends createZodDto(z.object({ period: z.string().default('current') })) {}
 
 const IDEMPOTENCY_RE = /^[\w-]{8,100}$/;
 
@@ -29,7 +34,17 @@ export class PublicController {
     private readonly reservations: ReservationService,
     private readonly orders: OrdersService,
     private readonly results: ResultsService,
+    private readonly ranking: RankingService,
   ) {}
+
+  @Get('orgs/:orgSlug/ranking')
+  @RateLimit({ name: 'pub-ranking', by: ['ip'], limit: 120, windowSeconds: 60 })
+  async rankingPublic(@Param('orgSlug') orgSlug: string, @Query() query: RankingQuery, @Res({ passthrough: true }) res: Response) {
+    if (!PERIOD_PARAM_RE.test(query.period)) throw Errors.validation({ field: 'period' }, 'Usa «current», AAAA-MM o AAAA-MM-DD.');
+    const org = await this.access.org(orgSlug);
+    res.setHeader('Cache-Control', 'public, max-age=30');
+    return this.ranking.publicRanking(org.id, query.period);
+  }
 
   @Get('orgs/:orgSlug/raffles/:raffleSlug/results')
   @RateLimit({ name: 'pub-results', by: ['ip'], limit: 120, windowSeconds: 60 })

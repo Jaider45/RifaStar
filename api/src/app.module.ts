@@ -27,6 +27,7 @@ import { PaymentAccountsModule } from './payment-accounts/payment-accounts';
 import { PublicModule } from './public/public.module';
 import { RafflesModule } from './raffles/raffles.module';
 import { ResultsModule } from './results/results.module';
+import { RankingModule } from './ranking/ranking.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -48,6 +49,7 @@ import { StorageModule } from './storage/storage.module';
     ParticipantsModule,
     OrdersModule,
     ResultsModule,
+    RankingModule,
     PublicModule,
     DashboardModule,
     MaintenanceModule,

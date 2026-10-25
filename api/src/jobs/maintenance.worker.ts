@@ -25,6 +25,7 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     this.register(JOB.expireReservations, () => this.maintenance.expireReservations());
     this.register(JOB.closeSalesSweep, () => this.maintenance.closeSalesSweep());
     this.register(JOB.closeSales, (job) => this.maintenance.closeSales(job.data.organizationId, job.data.raffleId));
+    this.register(JOB.rankingRollover, () => this.maintenance.rankingRollover());
   }
 
   /** Otras fases agregan sus manejadores aquí (ranking, recordatorios, facturación…). */
@@ -36,6 +37,7 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     const q = this.scheduler.maintenance;
     await q.upsertJobScheduler(JOB.expireReservations, { every: 60_000 }, { name: JOB.expireReservations });
     await q.upsertJobScheduler(JOB.closeSalesSweep, { every: 60_000 }, { name: JOB.closeSalesSweep });
+    await q.upsertJobScheduler(JOB.rankingRollover, { every: 60_000 }, { name: JOB.rankingRollover });
 
     this.worker = new Worker(
       MAINTENANCE_QUEUE,

@@ -6,7 +6,7 @@ import { AppError, Errors } from '../common/errors';
 import { formatNumber, formatNumberList } from '../common/format';
 import { normalizePhone } from '../common/phone';
 import { DatabaseService, type Tx } from '../database/database.service';
-import { upsertParticipant } from '../participants/participants.service';
+import { attachReferral, upsertParticipant } from '../participants/participants.service';
 import { presentPaymentAccount } from '../payment-accounts/payment-accounts';
 import { SettingsService } from '../settings/settings.service';
 import type { ReserveInput } from './orders.dto';
@@ -82,6 +82,7 @@ export class ReservationService {
         ? await tx.member.findFirst({ where: { sellerCode: input.sellerCode.toUpperCase(), status: 'active' }, select: { id: true, sellerCode: true } })
         : null;
       const participantId = await upsertParticipant(tx, organizationId, { phone, name: input.name, nickname: input.nickname });
+      if (input.referralCode) await attachReferral(tx, organizationId, participantId, input.referralCode);
 
       const orderId = randomUUID();
       const placeholder = input.numbers ?? Array.from({ length: count }, (_, i) => i);

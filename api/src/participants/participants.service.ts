@@ -16,14 +16,30 @@ export interface ParticipantInput {
 /** Alta o actualización atómica (sin carreras entre dos compras simultáneas del mismo teléfono). */
 export async function upsertParticipant(tx: Tx, organizationId: string, input: ParticipantInput): Promise<string> {
   const rows = await tx.$queryRaw<{ id: string }[]>`
-    INSERT INTO participants (id, organization_id, phone, name, nickname, first_seen_at, last_seen_at)
-    VALUES (gen_random_uuid(), ${organizationId}::uuid, ${input.phone}, ${input.name}, ${input.nickname ?? null}, now(), now())
+    INSERT INTO participants (id, organization_id, phone, name, nickname, referral_code, first_seen_at, last_seen_at)
+    VALUES (gen_random_uuid(), ${organizationId}::uuid, ${input.phone}, ${input.name}, ${input.nickname ?? null},
+            upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)), now(), now())
     ON CONFLICT (organization_id, phone) DO UPDATE
       SET name = EXCLUDED.name,
           nickname = COALESCE(EXCLUDED.nickname, participants.nickname),
           last_seen_at = now()
     RETURNING id`;
   return rows[0].id;
+}
+
+/**
+ * Bono por referir (P5): el código `?ref=` solo se guarda en la primera
+ * compra de un participante nuevo, y nunca apunta a sí mismo.
+ */
+export async function attachReferral(tx: Tx, organizationId: string, participantId: string, code: string): Promise<void> {
+  await tx.$executeRaw`
+    UPDATE participants p
+       SET referred_by_id = ref.id
+      FROM participants ref
+     WHERE p.id = ${participantId}::uuid AND p.organization_id = ${organizationId}::uuid
+       AND p.referred_by_id IS NULL
+       AND ref.organization_id = ${organizationId}::uuid AND ref.referral_code = ${code.toUpperCase()} AND ref.id <> p.id
+       AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.participant_id = p.id)`;
 }
 
 /** Evita la inyección de fórmulas al abrir el CSV en una hoja de cálculo. */
