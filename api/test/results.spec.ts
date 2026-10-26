@@ -1,4 +1,4 @@
-import { addMember, as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg } from './helpers';
+import { addMember, as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, totp } from './helpers';
 import { createRaffle, nextPhone, reserve, reserveAndSubmit } from './fixtures';
 
 describe('Resultados y ganadores', () => {
@@ -28,7 +28,7 @@ describe('Resultados y ganadores', () => {
     const res = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ mainResult: '2435' })
+      .send({ totpCode: totp(), mainResult: '2435' })
       .expect(200);
     expect(res.body.result).toMatchObject({ mainResult: '2435', anticipatedResult: null, revision: 1 });
     expect(prizeByRule(res.body, 'Dos últimas').winners).toMatchObject([{ number: '35', unsold: false, label: 'Laura Martínez' }]);
@@ -51,7 +51,7 @@ describe('Resultados y ganadores', () => {
     const fixed = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ mainResult: '2435', anticipatedResult: '9107' })
+      .send({ totpCode: totp(), mainResult: '2435', anticipatedResult: '9107' })
       .expect(200);
     expect(fixed.body.result.revision).toBe(2);
     expect(prizeByRule(fixed.body, 'Anticipado').winners).toMatchObject([{ number: '07', unsold: false }]);
@@ -68,7 +68,7 @@ describe('Resultados y ganadores', () => {
     const entered = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ mainResult: '4087', anticipatedResult: '1187' })
+      .send({ totpCode: totp(), mainResult: '4087', anticipatedResult: '1187' })
       .expect(200);
     const lastTwo = prizeByRule(entered.body, 'Dos últimas').winners[0] as { id: string };
 
@@ -76,7 +76,7 @@ describe('Resultados y ganadores', () => {
     expect((await ctx.http.post(`/v1/winners/${unsold.id}/deliver`).set(as(t.ownerToken, t.org.id)).send({}).expect(409)).body.code).toBe('WINNER_UNSOLD');
 
     await ctx.http.post(`/v1/winners/${lastTwo.id}/deliver`).set(as(t.ownerToken, t.org.id)).send({ note: 'Transferido' }).expect(200);
-    const blocked = await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ mainResult: '4000', anticipatedResult: '1187' }).expect(409);
+    const blocked = await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: '4000', anticipatedResult: '1187' }).expect(409);
     expect(blocked.body.code).toBe('WINNER_ALREADY_DELIVERED');
 
     // Antes de publicar no hay resultados públicos.
@@ -84,7 +84,7 @@ describe('Resultados y ganadores', () => {
 
     const pub = await ctx.http.post(`/v1/raffles/${raffle.id}/results/publish`).set(as(t.ownerToken, t.org.id)).expect(200);
     expect(pub.body.raffle.status).toBe('drawn');
-    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ mainResult: '1111' }).expect(409);
+    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: '1111' }).expect(409);
 
     const publicRes = await ctx.http.get(`/v1/public/orgs/${t.org.slug}/raffles/${raffle.slug}/results`).expect(200);
     expect(publicRes.body.result.mainResult).toBe('4087');
@@ -111,7 +111,7 @@ describe('Resultados y ganadores', () => {
     const res = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ mainResult: '4087', customWinners: [{ prizeId: customPrize, number: 715 }] })
+      .send({ totpCode: totp(), mainResult: '4087', customWinners: [{ prizeId: customPrize, number: 715 }] })
       .expect(200);
     expect(res.body.prizes[0].winners[0]).toMatchObject({ number: '4087', unsold: false });
     expect(res.body.prizes[1].winners[0]).toMatchObject({ number: '0715', unsold: false });
@@ -120,7 +120,7 @@ describe('Resultados y ganadores', () => {
     const bad = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ mainResult: '4087', customWinners: [{ prizeId: raffle.prizes[0].id, number: 1 }] })
+      .send({ totpCode: totp(), mainResult: '4087', customWinners: [{ prizeId: raffle.prizes[0].id, number: 1 }] })
       .expect(400);
     expect(bad.body.message).toBe('Solo los premios con regla especial llevan número manual.');
   });
@@ -128,9 +128,9 @@ describe('Resultados y ganadores', () => {
   it('solo quien tiene winners.announce registra resultados', async () => {
     const verifier = await addMember(ctx, t.org.id, 'payment_verifier');
     const raffle = await createRaffle(ctx, t);
-    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(verifier.token, t.org.id)).send({ mainResult: '1234' }).expect(403);
+    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(verifier.token, t.org.id)).send({ totpCode: totp(), mainResult: '1234' }).expect(403);
     await ctx.http.get(`/v1/raffles/${raffle.id}/winners`).set(as(verifier.token, t.org.id)).expect(200);
-    const fmt = await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ mainResult: '123' }).expect(400);
+    const fmt = await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: '123' }).expect(400);
     expect(fmt.body.details[0].message).toBe('El resultado tiene 4 dígitos (por ejemplo 0507).');
   });
 });

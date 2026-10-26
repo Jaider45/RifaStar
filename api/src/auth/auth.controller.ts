@@ -15,6 +15,7 @@ import { AuthService, type SessionTokens } from './auth.service';
 import type { AuthPrincipal } from './auth.types';
 import { CurrentAuth, Public } from './decorators';
 import { TokensService, USER_REFRESH_COOKIE } from './tokens.service';
+import { DEVICE_COOKIE, DevicesService } from './devices.service';
 import { Errors } from '../common/errors';
 
 const userId = (auth: AuthPrincipal) => {
@@ -28,6 +29,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly tokens: TokensService,
+    private readonly devices: DevicesService,
   ) {}
 
   /** El refresh token solo viaja en la cookie httpOnly; el cuerpo lleva el access token. */
@@ -39,8 +41,9 @@ export class AuthController {
   @Public()
   @Post('signup')
   @RateLimit({ name: 'signup', by: ['ip'], limit: 10, windowSeconds: 3600 })
-  async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
-    const { organizationId, ...session } = await this.auth.signup(dto);
+  async signup(@Body() dto: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { organizationId, userId: uid, ...session } = await this.auth.signup(dto);
+    await this.devices.recordLogin(uid, req.cookies?.[DEVICE_COOKIE], res);
     return this.respond(res, session, { organizationId });
   }
 
@@ -51,8 +54,11 @@ export class AuthController {
     { name: 'login-ip', by: ['ip'], limit: 30, windowSeconds: 900 },
     { name: 'login-email', by: ['email'], limit: 10, windowSeconds: 900 },
   )
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    return this.respond(res, await this.auth.login(dto));
+  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { userId: uid, ...session } = await this.auth.login(dto);
+    // Avisa por correo si entra desde un equipo nuevo.
+    await this.devices.recordLogin(uid, req.cookies?.[DEVICE_COOKIE], res);
+    return this.respond(res, session);
   }
 
   @Public()
@@ -125,6 +131,7 @@ export class InvitationsController {
   constructor(
     private readonly auth: AuthService,
     private readonly tokens: TokensService,
+    private readonly devices: DevicesService,
   ) {}
 
   @Public()
@@ -138,8 +145,9 @@ export class InvitationsController {
   @Post(':token/accept')
   @HttpCode(200)
   @RateLimit({ name: 'invite-accept', by: ['ip'], limit: 20, windowSeconds: 3600 })
-  async accept(@Param('token') token: string, @Body() dto: AcceptInvitationDto, @Res({ passthrough: true }) res: Response) {
-    const { organizationId, ...session } = await this.auth.acceptInvitation(token, dto);
+  async accept(@Param('token') token: string, @Body() dto: AcceptInvitationDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { organizationId, userId: uid, ...session } = await this.auth.acceptInvitation(token, dto);
+    await this.devices.recordLogin(uid, req.cookies?.[DEVICE_COOKIE], res);
     this.tokens.setRefreshCookie(res, 'user', session.refreshToken);
     return { accessToken: session.accessToken, expiresIn: session.expiresIn, organizationId };
   }

@@ -22,6 +22,22 @@ export const ORG_PERMISSIONS = [
 export type OrgPermission = (typeof ORG_PERMISSIONS)[number]['key'];
 export const ORG_PERMISSION_KEYS = ORG_PERMISSIONS.map((p) => p.key) as OrgPermission[];
 
+/**
+ * Permisos que mueven dinero, resultados o datos de muchas personas. Quien los ejerce
+ * debe tener activa la verificación en dos pasos (plan de seguridad, punto 1).
+ */
+export const TWO_FACTOR_PERMISSIONS: ReadonlySet<OrgPermission> = new Set<OrgPermission>([
+  'payments.approve',
+  'payments.release',
+  'winners.announce',
+  'participants.export',
+  'settings.team',
+  'settings.billing',
+]);
+
+export const needsTwoFactor = (permissions: Iterable<OrgPermission>): boolean =>
+  [...permissions].some((p) => TWO_FACTOR_PERMISSIONS.has(p));
+
 /** Claves de permiso del equipo de la plataforma. */
 export const PLATFORM_PERMISSIONS = [
   { key: 'platform.orgs.read', group: 'Organizaciones', description: 'Ver organizaciones y actividad' },

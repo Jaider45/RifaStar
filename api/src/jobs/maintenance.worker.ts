@@ -1,6 +1,8 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { type Job, Worker } from 'bullmq';
 import { BillingService } from '../billing/billing.service';
+import { LotteryService } from '../lottery/lottery.service';
+import { ManagerAlertsService } from '../messaging/manager-alerts.service';
 import { NotificationsService } from '../messaging/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import { JOB, MAINTENANCE_QUEUE } from './jobs.constants';
@@ -25,6 +27,8 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     private readonly maintenance: MaintenanceService,
     private readonly notifications: NotificationsService,
     private readonly billing: BillingService,
+    private readonly lottery: LotteryService,
+    private readonly managerAlerts: ManagerAlertsService,
   ) {
     this.register(JOB.expireReservations, () => this.maintenance.expireReservations());
     this.register(JOB.closeSalesSweep, () => this.maintenance.closeSalesSweep());
@@ -36,6 +40,9 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     this.register(JOB.dailyDigest, () => this.notifications.dailyDigest());
     // billing-sync: un evento del webhook (con id) o el barrido periódico.
     this.register(JOB.billingSync, (job) => (job.data?.billingEventId ? this.billing.processEvent(job.data.billingEventId) : this.billing.sweep()));
+    // Resultados de LoteríaYa (respaldo de los webhooks) y recordatorio de entregas a los gestores.
+    this.register(JOB.lotteryPoll, () => this.lottery.poll());
+    this.register(JOB.deliveryReminder, () => this.managerAlerts.deliveryReminders());
   }
 
   /** Otras fases agregan sus manejadores aquí (ranking, recordatorios, facturación…). */
@@ -50,6 +57,8 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     await q.upsertJobScheduler(JOB.rankingRollover, { every: 60_000 }, { name: JOB.rankingRollover });
     await q.upsertJobScheduler(JOB.dailyDigest, { every: 15 * 60_000 }, { name: JOB.dailyDigest });
     await q.upsertJobScheduler(JOB.billingSync, { every: 60 * 60_000 }, { name: JOB.billingSync, data: {} });
+    await q.upsertJobScheduler(JOB.lotteryPoll, { every: 10 * 60_000 }, { name: JOB.lotteryPoll });
+    await q.upsertJobScheduler(JOB.deliveryReminder, { every: 30 * 60_000 }, { name: JOB.deliveryReminder });
 
     this.worker = new Worker(
       MAINTENANCE_QUEUE,

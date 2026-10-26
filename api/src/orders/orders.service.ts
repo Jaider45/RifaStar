@@ -74,6 +74,26 @@ export class OrdersService {
 
   private include = { raffle: true, participant: true, tickets: true } satisfies Prisma.OrderInclude;
 
+  /**
+   * Alertas antifraude para quien verifica: el mismo archivo usado en otra orden, y si la
+   * venta es suya (no la puede aprobar: separación de funciones).
+   */
+  private async alerts(tx: Tx, org: OrgContext, rows: Order[]) {
+    const hashes = [...new Set(rows.map((o) => o.receiptSha256).filter((h): h is string => Boolean(h)))];
+    const dupes = hashes.length
+      ? await tx.order.findMany({
+          where: { receiptSha256: { in: hashes } },
+          select: { id: true, receiptSha256: true, createdAt: true, status: true, participant: { select: { name: true } }, raffle: { select: { title: true } } },
+        })
+      : [];
+    return (o: Order) => ({
+      duplicateReceipt: dupes
+        .filter((d) => d.receiptSha256 === o.receiptSha256 && d.id !== o.id)
+        .map((d) => ({ orderId: d.id, participantName: d.participant.name, raffle: d.raffle.title, status: d.status, createdAt: d.createdAt })),
+      ownSale: Boolean(org.memberId && o.sellerMemberId === org.memberId),
+    });
+  }
+
   /** Cola de verificación: los más antiguos primero. */
   queue(org: OrgContext, raffleId?: string) {
     return this.db.tenantTx(org.id, async (tx) => {
@@ -83,8 +103,14 @@ export class OrdersService {
         orderBy: [{ receiptUploadedAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
         take: 500,
       });
-      return rows.map((o) => this.present(org, o));
+      const alertsFor = await this.alerts(tx, org, rows);
+      return rows.map((o) => ({ ...this.present(org, o), alerts: alertsFor(o) }));
     });
+  }
+
+  /** Nadie aprueba ni rechaza el pago de una venta atribuida a su propio código. */
+  private assertNotOwnSale(org: OrgContext, o: Order) {
+    if (org.memberId && o.sellerMemberId === org.memberId) throw Errors.selfApproval();
   }
 
   list(org: OrgContext, query: ListOrdersQuery) {
@@ -115,11 +141,15 @@ export class OrdersService {
   }
 
   async detail(org: OrgContext, id: string) {
-    const order = await this.db.tenantTx(org.id, (tx) => this.findFull(tx, id));
+    const { order, alerts } = await this.db.tenantTx(org.id, async (tx) => {
+      const order = await this.findFull(tx, id);
+      return { order, alerts: (await this.alerts(tx, org, [order]))(order) };
+    });
     return {
       ...this.present(org, order),
       receiptUrl: order.receiptKey ? await this.storage.signedGetUrl(order.receiptKey, 60) : null,
       verifiedBy: order.verifiedById,
+      alerts,
     };
   }
 
@@ -139,6 +169,7 @@ export class OrdersService {
       if (!(await lockOrder(tx, id))) throw Errors.notFound('la orden');
       const o = await this.findFull(tx, id);
       if (o.status !== 'pending_verification' && o.status !== 'reserved') throw invalidState();
+      this.assertNotOwnSale(org, o);
       if (!['active', 'sold_out', 'closed'].includes(o.raffle.status)) {
         throw Errors.conflict('RAFFLE_NOT_APPROVABLE', 'El sorteo ya se jugó o fue cancelado: no se pueden aprobar pagos.');
       }
@@ -191,6 +222,7 @@ export class OrdersService {
       if (!(await lockOrder(tx, id))) throw Errors.notFound('la orden');
       const o = await this.findFull(tx, id);
       if (o.status !== 'pending_verification' && o.status !== 'reserved') throw invalidState();
+      this.assertNotOwnSale(org, o);
       await tx.order.update({
         where: { id },
         data: { status: 'rejected', rejectionReason: reason, verifiedById: org.memberId, verifiedAt: new Date() },
@@ -341,6 +373,8 @@ export class OrdersService {
    */
   async receiptConfirm(organizationId: string, orderId: string, key: string | undefined) {
     const file = key ? await this.uploads.verify(this.receiptPolicy(organizationId, orderId), key) : null;
+    // Huella del archivo: el panel avisa si el mismo comprobante aparece en otra orden.
+    const sha256 = file ? await this.storage.sha256(file.key) : null;
     const previousKey = await this.db.tenantTx(organizationId, async (tx) => {
       if (!(await lockOrder(tx, orderId))) throw Errors.notFound('la orden');
       const o = await this.findFull(tx, orderId);
@@ -356,7 +390,7 @@ export class OrdersService {
         where: { id: orderId },
         data: {
           status: 'pending_verification',
-          ...(file && { receiptKey: file.key, receiptMime: file.mime, receiptSize: file.size, receiptUploadedAt: now }),
+          ...(file && { receiptKey: file.key, receiptMime: file.mime, receiptSize: file.size, receiptUploadedAt: now, receiptSha256: sha256 }),
         },
       });
       await tx.$executeRaw`

@@ -13,14 +13,17 @@ import { IMAGE_TYPES, MB } from '../storage/file-type';
 import { StorageProvider } from '../storage/storage.provider';
 import { type UploadPolicy, UploadsService } from '../storage/uploads.service';
 import { can, type OrgContext } from '../tenancy/org-context';
+import { PageConfig, readPageConfig } from './page-config';
 import { prizeRuleLabel, RULES_BY_DIGITS } from './prize-rules';
-import type {
-  CreateRaffleDto,
-  DuplicateRaffleDto,
-  ListRafflesQuery,
-  PrizeInput,
-  UpdateRaffleDto,
-  UploadRequestDto,
+import {
+  extraDigitsIssue,
+  type CreateRaffleDto,
+  type DuplicateRaffleDto,
+  type ListRafflesQuery,
+  type MediaKind,
+  type PrizeInput,
+  type UpdateRaffleDto,
+  type UploadRequestDto,
 } from './raffles.dto';
 
 type RaffleWithPrizes = Raffle & { prizes: Prize[]; paymentAccounts: { paymentAccountId: string }[] };
@@ -89,17 +92,23 @@ export class RafflesService {
       publicUrl: `${env().PUBLIC_BASE_URL}/${org.slug}/${r.slug}`,
       title: r.title,
       lottery: r.lottery,
+      lotteryDrawCode: r.lotteryDrawCode,
       drawAt: r.drawAt,
       salesCloseAt: r.salesCloseAt,
       pricePerNumber: r.pricePerNumber,
       digits: r.digits,
       totalNumbers: r.totalNumbers,
       minPerOrder: r.minPerOrder,
+      numberSelection: r.numberSelection,
+      extraDigitsSource: r.extraDigitsSource,
+      extraDigitsPosition: r.extraDigitsPosition,
       accentColor: r.accentColor,
       conditionText: r.conditionText,
       authorizationNumber: r.authorizationNumber,
+      pageConfig: readPageConfig(r.pageConfig),
       status: r.status,
       coverUrl: r.coverImageKey ? await this.storage.signedGetUrl(r.coverImageKey, 3600) : null,
+      gallery: await Promise.all(r.galleryKeys.map(async (key) => ({ key, url: await this.storage.signedGetUrl(key, 3600) }))),
       progress: { paid: r.paidCount, held: r.heldCount, available: r.totalNumbers - r.paidCount - r.heldCount },
       ...(org.permissions.has('payments.view') && { collectedCop: r.paidCount * r.pricePerNumber }),
       publishedAt: r.publishedAt,
@@ -108,17 +117,22 @@ export class RafflesService {
       cancelledAt: r.cancelledAt,
       cancelReason: r.cancelReason,
       createdAt: r.createdAt,
-      prizes: r.prizes.map((p) => ({
-        id: p.id,
-        position: p.position,
-        amountCop: p.amountCop,
-        description: p.description,
-        rule: p.rule,
-        ruleLabel: prizeRuleLabel(p, org.timezone),
-        customRuleText: p.customRuleText,
-        anticipatedLottery: p.anticipatedLottery,
-        anticipatedDrawAt: p.anticipatedDrawAt,
-      })),
+      prizes: await Promise.all(
+        r.prizes.map(async (p) => ({
+          id: p.id,
+          position: p.position,
+          amountCop: p.amountCop,
+          description: p.description,
+          rule: p.rule,
+          ruleLabel: prizeRuleLabel(p, org.timezone),
+          customRuleText: p.customRuleText,
+          anticipatedLottery: p.anticipatedLottery,
+          anticipatedDrawCode: p.anticipatedDrawCode,
+          anticipatedDrawAt: p.anticipatedDrawAt,
+          imageKey: p.imageKey,
+          imageUrl: p.imageKey ? await this.storage.signedGetUrl(p.imageKey, 3600) : null,
+        })),
+      ),
       paymentAccountIds: r.paymentAccounts.map((a) => a.paymentAccountId),
     };
   }
@@ -141,15 +155,20 @@ export class RafflesService {
           slug,
           title: dto.title,
           lottery: dto.lottery,
+          lotteryDrawCode: dto.lotteryDrawCode ?? null,
           drawAt: dto.drawAt,
           salesCloseAt: dto.salesCloseAt ?? null,
           pricePerNumber: dto.pricePerNumber,
           digits: dto.digits,
           totalNumbers: 10 ** dto.digits,
           minPerOrder: dto.minPerOrder,
+          numberSelection: dto.numberSelection,
+          extraDigitsSource: dto.digits >= 5 ? (dto.extraDigitsSource ?? null) : null,
+          extraDigitsPosition: dto.extraDigitsPosition,
           accentColor: dto.accentColor ?? null,
           conditionText: dto.conditionText ?? null,
           authorizationNumber: dto.authorizationNumber ?? null,
+          pageConfig: (dto.pageConfig ?? PageConfig.parse({})) as Prisma.InputJsonValue,
           createdById: org.memberId,
         },
       });
@@ -166,26 +185,38 @@ export class RafflesService {
       const current = await this.find(tx, id);
       if (current.status === 'drawn' || current.status === 'cancelled') throw notEditable();
       if (current.status !== 'draft') {
-        const locked = (['digits', 'pricePerNumber', 'slug'] as const).filter(
-          (f) => dto[f] !== undefined && dto[f] !== current[f],
-        );
+        // Cambiar cómo se arma o se reparte el número después de vender afectaría a quien ya compró.
+        const locked = (
+          ['digits', 'pricePerNumber', 'slug', 'numberSelection', 'extraDigitsSource', 'extraDigitsPosition', 'minPerOrder'] as const
+        ).filter((f) => dto[f] !== undefined && dto[f] !== current[f]);
         if (locked.length > 0) {
           throw Errors.conflict(
             'RAFFLE_LOCKED_FIELD',
-            'Después de publicar no se pueden cambiar las cifras, el precio ni la dirección del sorteo.',
+            'Después de publicar no se pueden cambiar las cifras, el precio, la dirección, cómo se eligen los números ni la compra mínima.',
             { fields: locked },
           );
         }
       }
       const digits = dto.digits ?? current.digits;
       if (dto.digits && dto.digits !== current.digits) this.validatePrizes(digits, current.prizes);
+      // Si cambian las cifras, la fuente de las cifras extra tiene que seguir siendo válida.
+      const extraDigitsSource = digits >= 5 ? (dto.extraDigitsSource === undefined ? current.extraDigitsSource : dto.extraDigitsSource) : null;
+      const issue = extraDigitsIssue(digits, extraDigitsSource);
+      if (issue) throw Errors.validation([{ path: ['extraDigitsSource'], message: issue }], issue);
       this.validateDates(dto.drawAt ?? current.drawAt, dto.salesCloseAt === undefined ? current.salesCloseAt : dto.salesCloseAt);
       const slug = dto.slug && dto.slug !== current.slug ? await this.resolveSlug(tx, dto.slug, current.title) : undefined;
 
-      const { paymentAccountIds, ...fields } = dto;
+      if (dto.galleryKeys) await this.assertMedia(org.id, id, 'gallery', dto.galleryKeys, current.galleryKeys);
+      const { paymentAccountIds, pageConfig, ...fields } = dto;
       const updated = await tx.raffle.update({
         where: { id },
-        data: { ...fields, slug, ...(dto.digits && { totalNumbers: 10 ** dto.digits }) },
+        data: {
+          ...fields,
+          slug,
+          extraDigitsSource,
+          ...(pageConfig && { pageConfig: pageConfig as Prisma.InputJsonValue }),
+          ...(dto.digits && { totalNumbers: 10 ** dto.digits }),
+        },
       });
       if (paymentAccountIds) await this.linkPaymentAccounts(tx, org.id, id, paymentAccountIds);
       await this.audit.record(tx, {
@@ -211,6 +242,7 @@ export class RafflesService {
       if (current.status !== 'draft' && prizes.length === 0) {
         throw Errors.validation({ field: 'prizes' }, 'Un sorteo publicado necesita al menos un premio.');
       }
+      await this.assertMedia(org.id, id, 'prize', prizes.map((p) => p.imageKey), current.prizes.map((p) => p.imageKey).filter((k): k is string => Boolean(k)));
       await tx.prize.deleteMany({ where: { raffleId: id } });
       await this.writePrizes(tx, org.id, id, prizes);
       await this.audit.record(tx, {
@@ -252,11 +284,7 @@ export class RafflesService {
         await assertCanActivate?.(tx);
         if (current.paymentAccounts.length === 0) await this.linkPaymentAccounts(tx, org.id, id, accountIds);
 
-        await tx.$executeRaw`
-          INSERT INTO raffle_numbers (raffle_id, number, organization_id, status)
-          SELECT ${id}::uuid, g, ${org.id}::uuid, 'available'
-            FROM generate_series(0, ${current.totalNumbers - 1}) AS g
-          ON CONFLICT DO NOTHING`;
+        // No se crean filas de números: raffle_numbers guarda solo los tomados.
         await tx.raffle.update({ where: { id }, data: { status: 'active', publishedAt: new Date() } });
         await this.audit.record(tx, { action: 'raffle.publish', entityType: 'raffle', entityId: id, after: { status: 'active' } });
         return this.find(tx, id);
@@ -300,14 +328,19 @@ export class RafflesService {
     return this.create(org, {
       title,
       lottery: source.lottery,
+      lotteryDrawCode: source.lotteryDrawCode,
       drawAt: dto.drawAt ?? source.drawAt,
       salesCloseAt: source.salesCloseAt,
       pricePerNumber: source.pricePerNumber,
-      digits: source.digits as 2 | 3 | 4,
+      digits: source.digits as 2 | 3 | 4 | 5 | 6,
       minPerOrder: source.minPerOrder,
+      numberSelection: source.numberSelection,
+      extraDigitsSource: source.extraDigitsSource,
+      extraDigitsPosition: source.extraDigitsPosition,
       accentColor: source.accentColor,
       conditionText: source.conditionText,
       authorizationNumber: source.authorizationNumber,
+      pageConfig: readPageConfig(source.pageConfig),
       paymentAccountIds: source.paymentAccounts.map((a) => a.paymentAccountId),
       prizes: source.prizes.map((p) => ({
         amountCop: p.amountCop ?? undefined,
@@ -315,6 +348,7 @@ export class RafflesService {
         rule: p.rule,
         customRuleText: p.customRuleText ?? undefined,
         anticipatedLottery: p.anticipatedLottery ?? undefined,
+        anticipatedDrawCode: p.anticipatedDrawCode,
         anticipatedDrawAt: p.anticipatedDrawAt ?? undefined,
       })),
     }).then(async (created) => {
@@ -366,6 +400,36 @@ export class RafflesService {
 
   private coverPolicy(orgId: string, raffleId: string): UploadPolicy {
     return { prefix: `covers/${orgId}/${raffleId}/`, allowed: IMAGE_TYPES, maxBytes: 5 * MB, label: 'la foto de portada' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Galería y fotos de premios (personalización de la página pública)
+  // ---------------------------------------------------------------------------
+
+  private mediaPolicy(orgId: string, raffleId: string, kind: MediaKind): UploadPolicy {
+    return kind === 'gallery'
+      ? { prefix: `gallery/${orgId}/${raffleId}/`, allowed: IMAGE_TYPES, maxBytes: 5 * MB, label: 'la foto' }
+      : { prefix: `prizes/${orgId}/${raffleId}/`, allowed: IMAGE_TYPES, maxBytes: 5 * MB, label: 'la foto del premio' };
+  }
+
+  async mediaUpload(org: OrgContext, id: string, kind: MediaKind, dto: UploadRequestDto) {
+    await this.db.tenantTx(org.id, (tx) => this.find(tx, id));
+    return this.uploads.presign(this.mediaPolicy(org.id, id, kind), dto.contentType, dto.size);
+  }
+
+  /** Verifica el archivo (tamaño y tipo real) y devuelve su key para guardarla en el sorteo o el premio. */
+  async mediaConfirm(org: OrgContext, id: string, kind: MediaKind, key: string) {
+    await this.db.tenantTx(org.id, (tx) => this.find(tx, id));
+    const file = await this.uploads.verify(this.mediaPolicy(org.id, id, kind), key);
+    return { key: file.key, url: await this.storage.signedGetUrl(file.key, 3600) };
+  }
+
+  /** Las keys nuevas tienen que ser archivos de este sorteo ya verificados. */
+  private async assertMedia(orgId: string, raffleId: string, kind: MediaKind, keys: (string | null | undefined)[], known: string[]) {
+    for (const key of keys) {
+      if (!key || known.includes(key)) continue;
+      await this.uploads.verify(this.mediaPolicy(orgId, raffleId, kind), key);
+    }
   }
 
   async coverUpload(org: OrgContext, id: string, dto: UploadRequestDto) {
@@ -424,7 +488,7 @@ export class RafflesService {
   // ---------------------------------------------------------------------------
 
   private validatePrizes(digits: number, prizes: { rule: Prize['rule'] }[]) {
-    const allowed = RULES_BY_DIGITS[digits as 2 | 3 | 4];
+    const allowed = RULES_BY_DIGITS[digits as 2 | 3 | 4 | 5 | 6];
     const issues = prizes
       .map((p, i) => ({ p, i }))
       .filter(({ p }) => !allowed.includes(p.rule))
@@ -467,7 +531,10 @@ export class RafflesService {
         rule: p.rule,
         customRuleText: p.customRuleText ?? null,
         anticipatedLottery: p.anticipatedLottery ?? null,
+        anticipatedDrawCode: p.anticipatedDrawCode ?? null,
         anticipatedDrawAt: p.anticipatedDrawAt ?? null,
+        // Solo keys de este sorteo (las nuevas ya pasaron por assertMedia).
+        imageKey: p.imageKey?.startsWith(`prizes/${organizationId}/${raffleId}/`) ? p.imageKey : null,
       })),
     });
   }

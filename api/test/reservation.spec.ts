@@ -82,7 +82,7 @@ describe('Apartado atómico de números', () => {
     const raffle = await createRaffle(ctx, t, { minPerOrder: 2 });
     const min = await reserve(ctx, t, raffle.slug, { numbers: [1] });
     expect(min.status).toBe(400);
-    expect(min.body.message).toBe('La compra mínima en este sorteo es de 2 números.');
+    expect(min.body.message).toBe('La compra mínima en este sorteo es de 2 números por participante.');
 
     const range = await reserve(ctx, t, raffle.slug, { numbers: [5, 150] });
     expect(range.status).toBe(400);

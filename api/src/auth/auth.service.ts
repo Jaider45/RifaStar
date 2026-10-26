@@ -6,6 +6,7 @@ import { requestContext } from '../common/request-context';
 import { env } from '../config/env';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService } from '../database/database.service';
+import { needsTwoFactor } from '../permissions/catalog';
 import { PermissionsService } from '../permissions/permissions.service';
 import { ProvisioningService } from '../tenancy/provisioning.service';
 import type { AcceptInvitationDto, LoginDto, SignupDto } from './auth.dto';
@@ -43,7 +44,7 @@ export class AuthService {
   }
 
   /** Registro autoservicio (P1): crea el owner y su organización en prueba. */
-  async signup(dto: SignupDto): Promise<SessionTokens & { organizationId: string }> {
+  async signup(dto: SignupDto): Promise<SessionTokens & { organizationId: string; userId: string }> {
     const existing = await this.db.system.user.findUnique({ where: { email: dto.email } });
     if (existing) throw Errors.emailTaken();
     const passwordHash = await this.passwords.hash(dto.password);
@@ -70,10 +71,10 @@ export class AuthService {
       }
       throw err;
     }
-    return { ...(await this.session(result.userId)), organizationId: result.organizationId };
+    return { ...(await this.session(result.userId)), organizationId: result.organizationId, userId: result.userId };
   }
 
-  async login(dto: LoginDto): Promise<SessionTokens> {
+  async login(dto: LoginDto): Promise<SessionTokens & { userId: string }> {
     const user = await this.db.system.user.findUnique({ where: { email: dto.email } });
     const ok = await this.passwords.verify(user?.passwordHash, dto.password);
     if (!user || !ok) throw Errors.invalidCredentials();
@@ -82,7 +83,7 @@ export class AuthService {
       if (!this.totp.verify(user.totpSecretEnc, dto.totpCode)) throw Errors.twoFactorInvalid();
     }
     await this.db.system.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    return this.session(user.id);
+    return { ...(await this.session(user.id)), userId: user.id };
   }
 
   async refresh(refreshToken: string | undefined): Promise<SessionTokens> {
@@ -111,18 +112,23 @@ export class AuthService {
       },
     });
     if (!user) throw Errors.sessionExpired();
+    const memberships = user.memberships.map((m) => ({
+      memberId: m.id,
+      organization: { id: m.organization.id, slug: m.organization.slug, name: m.organization.name, status: m.organization.status },
+      role: { id: m.role.id, key: m.role.key, name: m.role.name },
+      sellerCode: m.sellerCode,
+      permissions: [...this.permissions.roleKeys(m.role.key, m.role.organizationId, m.role.permissions)],
+    }));
     return {
       id: user.id,
       email: user.email,
       name: user.name,
+      phone: user.phone,
+      phoneVerified: Boolean(user.phoneVerifiedAt),
       twoFactorEnabled: Boolean(user.totpEnabledAt),
-      memberships: user.memberships.map((m) => ({
-        memberId: m.id,
-        organization: { id: m.organization.id, slug: m.organization.slug, name: m.organization.name, status: m.organization.status },
-        role: { id: m.role.id, key: m.role.key, name: m.role.name },
-        sellerCode: m.sellerCode,
-        permissions: [...this.permissions.roleKeys(m.role.key, m.role.organizationId, m.role.permissions)],
-      })),
+      // Algún rol suyo aprueba pagos, anuncia ganadores o maneja el equipo: el panel le pide activarla.
+      twoFactorRequired: memberships.some((m) => needsTwoFactor(m.permissions)),
+      memberships,
     };
   }
 
@@ -197,7 +203,7 @@ export class AuthService {
    * Acepta una invitación. Si la cuenta no tiene contraseña, la crea; si ya la
    * tiene, la contraseña confirma que es su dueño.
    */
-  async acceptInvitation(token: string, dto: AcceptInvitationDto): Promise<SessionTokens & { organizationId: string }> {
+  async acceptInvitation(token: string, dto: AcceptInvitationDto): Promise<SessionTokens & { organizationId: string; userId: string }> {
     const m = await this.findInvitation(token);
     if (m.user.passwordHash) {
       if (!(await this.passwords.verify(m.user.passwordHash, dto.password))) throw Errors.invalidCredentials();
@@ -221,6 +227,6 @@ export class AuthService {
         tx,
       );
     });
-    return { ...(await this.session(m.userId)), organizationId: m.organizationId };
+    return { ...(await this.session(m.userId)), organizationId: m.organizationId, userId: m.userId };
   }
 }

@@ -291,6 +291,177 @@
         ]
       }
     },
+    "/v1/auth/sessions": {
+      "get": {
+        "operationId": "SessionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/sessions/{id}": {
+      "delete": {
+        "operationId": "SessionsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/auth/sessions/revoke-others": {
+      "post": {
+        "operationId": "SessionsController_revokeOthers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/me/phone": {
+      "post": {
+        "operationId": "MyPhoneController_start",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      },
+      "delete": {
+        "operationId": "MyPhoneController_remove",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
+    "/v1/me/phone/verify": {
+      "post": {
+        "operationId": "MyPhoneController_verify",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Autenticación"
+        ]
+      }
+    },
     "/v1/platform/auth/login": {
       "post": {
         "operationId": "PlatformAuthController_login",
@@ -518,6 +689,35 @@
         ],
         "tags": [
           "Ajustes"
+        ]
+      }
+    },
+    "/v1/lotteries": {
+      "get": {
+        "operationId": "LotteriesController_catalog",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Loterías"
         ]
       }
     },
@@ -1552,6 +1752,116 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/media/{kind}": {
+      "post": {
+        "operationId": "RafflesController_media",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Sorteos"
+        ]
+      }
+    },
+    "/v1/raffles/{id}/media/{kind}/confirm": {
+      "post": {
+        "operationId": "RafflesController_mediaConfirm",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -2977,6 +3287,18 @@
                 "all",
                 "available"
               ]
+            }
+          },
+          {
+            "name": "block",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 0,
+              "maximum": 999,
+              "exclusiveMaximum": false,
+              "exclusiveMinimum": false,
+              "type": "integer"
             }
           }
         ],
@@ -4605,6 +4927,31 @@
           "password"
         ]
       },
+      "PhoneDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "PhoneCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
       "PlatformLoginDto": {
         "type": "object",
         "properties": {
@@ -4986,6 +5333,12 @@
             "minLength": 2,
             "maxLength": 80
           },
+          "lotteryDrawCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 60,
+            "nullable": true
+          },
           "drawAt": {},
           "salesCloseAt": {
             "nullable": true
@@ -5013,6 +5366,16 @@
                 "type": "number",
                 "minimum": 4,
                 "maximum": 4
+              },
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 5
+              },
+              {
+                "type": "number",
+                "minimum": 6,
+                "maximum": 6
               }
             ]
           },
@@ -5023,6 +5386,42 @@
             "maximum": 500,
             "exclusiveMaximum": false,
             "default": 1
+          },
+          "numberSelection": {
+            "type": "string",
+            "enum": [
+              "choose",
+              "random"
+            ],
+            "x-enumNames": [
+              "choose",
+              "random"
+            ],
+            "default": "choose"
+          },
+          "extraDigitsSource": {
+            "type": "string",
+            "enum": [
+              "series",
+              "fifth_digit"
+            ],
+            "x-enumNames": [
+              "series",
+              "fifth_digit"
+            ],
+            "nullable": true
+          },
+          "extraDigitsPosition": {
+            "type": "string",
+            "enum": [
+              "start",
+              "end"
+            ],
+            "x-enumNames": [
+              "start",
+              "end"
+            ],
+            "default": "end"
           },
           "accentColor": {
             "type": "string",
@@ -5038,6 +5437,87 @@
             "type": "string",
             "maxLength": 60,
             "nullable": true
+          },
+          "pageConfig": {
+            "type": "object",
+            "properties": {
+              "theme": {
+                "type": "string",
+                "enum": [
+                  "dark",
+                  "light"
+                ],
+                "default": "dark"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 2000,
+                "nullable": true,
+                "default": null
+              },
+              "faq": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "q": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 150
+                    },
+                    "a": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 600
+                    }
+                  },
+                  "required": [
+                    "q",
+                    "a"
+                  ]
+                },
+                "default": []
+              },
+              "show": {
+                "type": "object",
+                "properties": {
+                  "countdown": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "progress": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "remaining": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "organizer": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "ranking": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "social": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "default": {}
+              }
+            }
+          },
+          "galleryKeys": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
           },
           "prizes": {
             "type": "array",
@@ -5094,7 +5574,18 @@
                   "minLength": 2,
                   "maxLength": 80
                 },
-                "anticipatedDrawAt": {}
+                "anticipatedDrawCode": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "maxLength": 60,
+                  "nullable": true
+                },
+                "anticipatedDrawAt": {},
+                "imageKey": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "nullable": true
+                }
               },
               "required": [
                 "rule"
@@ -5137,6 +5628,12 @@
             "minLength": 2,
             "maxLength": 80
           },
+          "lotteryDrawCode": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 60,
+            "nullable": true
+          },
           "drawAt": {},
           "salesCloseAt": {
             "nullable": true
@@ -5164,6 +5661,16 @@
                 "type": "number",
                 "minimum": 4,
                 "maximum": 4
+              },
+              {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 5
+              },
+              {
+                "type": "number",
+                "minimum": 6,
+                "maximum": 6
               }
             ]
           },
@@ -5174,6 +5681,42 @@
             "maximum": 500,
             "exclusiveMaximum": false,
             "default": 1
+          },
+          "numberSelection": {
+            "type": "string",
+            "enum": [
+              "choose",
+              "random"
+            ],
+            "x-enumNames": [
+              "choose",
+              "random"
+            ],
+            "default": "choose"
+          },
+          "extraDigitsSource": {
+            "type": "string",
+            "enum": [
+              "series",
+              "fifth_digit"
+            ],
+            "x-enumNames": [
+              "series",
+              "fifth_digit"
+            ],
+            "nullable": true
+          },
+          "extraDigitsPosition": {
+            "type": "string",
+            "enum": [
+              "start",
+              "end"
+            ],
+            "x-enumNames": [
+              "start",
+              "end"
+            ],
+            "default": "end"
           },
           "accentColor": {
             "type": "string",
@@ -5189,6 +5732,87 @@
             "type": "string",
             "maxLength": 60,
             "nullable": true
+          },
+          "pageConfig": {
+            "type": "object",
+            "properties": {
+              "theme": {
+                "type": "string",
+                "enum": [
+                  "dark",
+                  "light"
+                ],
+                "default": "dark"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 2000,
+                "nullable": true,
+                "default": null
+              },
+              "faq": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "q": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 150
+                    },
+                    "a": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 600
+                    }
+                  },
+                  "required": [
+                    "q",
+                    "a"
+                  ]
+                },
+                "default": []
+              },
+              "show": {
+                "type": "object",
+                "properties": {
+                  "countdown": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "progress": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "remaining": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "organizer": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "ranking": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "social": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "default": {}
+              }
+            }
+          },
+          "galleryKeys": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "maxLength": 300
+            }
           },
           "paymentAccountIds": {
             "type": "array",
@@ -5258,7 +5882,18 @@
                   "minLength": 2,
                   "maxLength": 80
                 },
-                "anticipatedDrawAt": {}
+                "anticipatedDrawCode": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "maxLength": 60,
+                  "nullable": true
+                },
+                "anticipatedDrawAt": {},
+                "imageKey": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "nullable": true
+                }
               },
               "required": [
                 "rule"
@@ -5319,6 +5954,16 @@
             "pattern": "^\\d{4}$",
             "nullable": true
           },
+          "seriesResult": {
+            "type": "string",
+            "pattern": "^\\d{3}$",
+            "nullable": true
+          },
+          "fifthDigit": {
+            "type": "string",
+            "pattern": "^\\d$",
+            "nullable": true
+          },
           "customWinners": {
             "type": "array",
             "maxItems": 20,
@@ -5333,7 +5978,7 @@
                   "type": "integer",
                   "minimum": 0,
                   "exclusiveMinimum": false,
-                  "maximum": 9999,
+                  "maximum": 999999,
                   "exclusiveMaximum": false
                 }
               },
@@ -5342,10 +5987,15 @@
                 "number"
               ]
             }
+          },
+          "totpCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
           }
         },
         "required": [
-          "mainResult"
+          "mainResult",
+          "totpCode"
         ]
       },
       "DeliverDto": {
@@ -5404,7 +6054,7 @@
               "type": "integer",
               "minimum": 0,
               "exclusiveMinimum": false,
-              "maximum": 9999,
+              "maximum": 999999,
               "exclusiveMaximum": false
             }
           },

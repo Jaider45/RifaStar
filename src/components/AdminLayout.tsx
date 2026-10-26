@@ -65,6 +65,12 @@ export function AdminLayout() {
           Tu pago está vencido. Actualízalo en Ajustes › Plan y facturación para evitar la suspensión.
         </div>
       )}
+      {!session.support && session.me?.twoFactorRequired && !session.me.twoFactorEnabled && (
+        <div className="aviso-cuenta" role="status">
+          Tu rol aprueba pagos o anuncia ganadores: activa la verificación en dos pasos para poder hacerlo.{' '}
+          <NavLink to="/admin/ajustes?tab=seguridad" className="rs-btn rs-btn--secundario rs-btn--sm">Activarla ahora</NavLink>
+        </div>
+      )}
       {status === 'suspended' && (
         <div className="aviso-cuenta" role="alert">
           Tu cuenta está suspendida: puedes consultar, pero no hacer cambios ni vender. Revisa Ajustes › Plan y facturación.

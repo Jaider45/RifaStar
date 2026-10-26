@@ -14,7 +14,10 @@ import { EVIDENCE_TYPES, MB } from '../storage/file-type';
 import { StorageProvider } from '../storage/storage.provider';
 import { type UploadPolicy, UploadsService } from '../storage/uploads.service';
 import type { OrgContext } from '../tenancy/org-context';
-import { type Digits, needsAnticipated, winningNumber } from './winner-rules';
+import { StepUpService } from '../auth/step-up.service';
+import { localDateKey } from '../common/time';
+import { ManagerAlertsService } from '../messaging/manager-alerts.service';
+import { composeFullNumber, type Digits, extraResultField, needsAnticipated, winningNumber } from './winner-rules';
 import type { EnterResultDto } from './results.dto';
 
 const ENTERABLE = ['active', 'sold_out', 'closed'] as const;
@@ -32,6 +35,8 @@ export class ResultsService {
     private readonly uploads: UploadsService,
     private readonly storage: StorageProvider,
     private readonly settings: SettingsService,
+    private readonly stepUp: StepUpService,
+    private readonly managerAlerts: ManagerAlertsService,
   ) {}
 
   private async raffleFor(tx: Tx, id: string) {
@@ -48,6 +53,8 @@ export class ResultsService {
    * ganadores. Si la venta seguía abierta, se cierra.
    */
   async enter(org: OrgContext, raffleId: string, dto: EnterResultDto) {
+    // El resultado define quién gana: se confirma con el código de 2FA en el momento.
+    await this.stepUp.verify(org, dto.totpCode);
     await this.db.tenantTx(org.id, async (tx) => {
       const raffle = await this.raffleFor(tx, raffleId);
       if (raffle.resultsPublishedAt) {
@@ -57,6 +64,13 @@ export class ResultsService {
         throw Errors.conflict('RAFFLE_NOT_DRAWABLE', 'Este sorteo no admite resultados (borrador o cancelado).');
       }
       this.validateCustom(raffle, dto.customWinners ?? []);
+      const needed = extraResultField(raffle.digits as Digits, { source: raffle.extraDigitsSource, position: raffle.extraDigitsPosition });
+      if (needed === 'series' && !dto.seriesResult) {
+        throw Errors.validation({ field: 'seriesResult' }, `Este sorteo de ${raffle.digits} cifras juega con la serie: escribe la serie de la lotería (3 dígitos).`);
+      }
+      if (needed === 'fifthDigit' && !dto.fifthDigit) {
+        throw Errors.validation({ field: 'fifthDigit' }, 'Este sorteo de 5 cifras juega con la quinta cifra del chance: escríbela.');
+      }
 
       if (raffle.status !== 'closed') {
         await tx.raffle.update({ where: { id: raffleId }, data: { status: 'closed', closedAt: new Date() } });
@@ -66,6 +80,8 @@ export class ResultsService {
       const data = {
         mainResult: dto.mainResult,
         anticipatedResult: dto.anticipatedResult ?? null,
+        seriesResult: needed === 'series' ? dto.seriesResult! : (dto.seriesResult ?? null),
+        fifthDigit: needed === 'fifthDigit' ? dto.fifthDigit! : (dto.fifthDigit ?? null),
         customWinners: dto.customWinners ?? [],
         enteredById: org.memberId!,
         enteredAt: new Date(),
@@ -74,16 +90,26 @@ export class ResultsService {
         ? await tx.drawResult.update({ where: { raffleId }, data: { ...data, revision: { increment: 1 } } })
         : await tx.drawResult.create({ data: { ...data, organizationId: org.id, raffleId } });
       await this.recompute(tx, raffle, result);
+      const snapshot = (r: DrawResult) => ({
+        mainResult: r.mainResult,
+        anticipatedResult: r.anticipatedResult,
+        seriesResult: r.seriesResult,
+        fifthDigit: r.fifthDigit,
+        customWinners: r.customWinners,
+      });
       await this.audit.record(tx, {
         action: before ? 'result.correct' : 'result.enter',
         entityType: 'draw_result',
         entityId: result.id,
-        before: before && { mainResult: before.mainResult, anticipatedResult: before.anticipatedResult, customWinners: before.customWinners },
-        after: { mainResult: result.mainResult, anticipatedResult: result.anticipatedResult, customWinners: result.customWinners },
+        before: before && snapshot(before),
+        after: { ...snapshot(result), confirmedWith2fa: true },
       });
     });
+    // Aviso a los gestores con los ganadores (no hace fallar el ingreso).
+    await this.managerAlerts.winnersComputed(org.id, raffleId).catch(() => undefined);
     return this.winners(org, raffleId);
   }
+
 
   async recalculate(org: OrgContext, raffleId: string) {
     await this.db.tenantTx(org.id, async (tx) => {
@@ -120,7 +146,10 @@ export class ResultsService {
         desired.push(...custom.filter((c) => c.prizeId === prize.id));
         continue;
       }
-      const n = winningNumber(prize.rule, raffle.digits as Digits, result.mainResult, result.anticipatedResult);
+      const n = winningNumber(prize.rule, raffle.digits as Digits, result.mainResult, result.anticipatedResult, {
+        config: { source: raffle.extraDigitsSource, position: raffle.extraDigitsPosition },
+        result: { series: result.seriesResult, fifthDigit: result.fifthDigit },
+      });
       if (n !== null) desired.push({ prizeId: prize.id, number: n });
     }
 
@@ -177,14 +206,30 @@ export class ResultsService {
       const winners = await tx.winner.findMany({ where: { raffleId }, include: { participant: true, ticket: true } });
       const result = raffle.drawResult;
       return {
-        raffle: { id: raffle.id, title: raffle.title, status: raffle.status, digits: raffle.digits, resultsPublishedAt: raffle.resultsPublishedAt },
+        raffle: {
+          id: raffle.id,
+          title: raffle.title,
+          status: raffle.status,
+          digits: raffle.digits,
+          lottery: raffle.lottery,
+          drawAt: raffle.drawAt,
+          extraDigitsSource: raffle.extraDigitsSource,
+          extraDigitsPosition: raffle.extraDigitsPosition,
+          resultsPublishedAt: raffle.resultsPublishedAt,
+        },
         result: result && {
           mainResult: result.mainResult,
           anticipatedResult: result.anticipatedResult,
+          seriesResult: result.seriesResult,
+          fifthDigit: result.fifthDigit,
+          label: ManagerAlertsService.resultLabel(raffle, result),
           revision: result.revision,
           enteredAt: result.enteredAt,
+          managersNotified: (result.managersNotifiedRevision ?? 0) >= result.revision,
           evidenceUrls: await Promise.all(result.evidenceKeys.map((k) => this.storage.signedGetUrl(k, 600))),
         },
+        /** Lo que reportó LoteríaYa (informativo: el equipo ingresa y confirma el resultado). */
+        lotteryReport: await this.lotteryReport(tx, raffle, org.timezone),
         prizes: raffle.prizes.map((p) => {
           const rows = winners.filter((w) => w.prizeId === p.id);
           return {
@@ -200,6 +245,42 @@ export class ResultsService {
         }),
       };
     });
+  }
+
+  /** Resultado de LoteríaYa para la lotería y el anticipado del sorteo, en la fecha local del sorteo. */
+  private async lotteryReport(tx: Tx, raffle: Raffle & { prizes: Prize[] }, timezone: string) {
+    if (!raffle.lotteryDrawCode) return null;
+    const drawDate = new Date(`${localDateKey(raffle.drawAt, timezone)}T00:00:00Z`);
+    const main = await tx.lotteryResult.findUnique({ where: { drawCode_drawDate: { drawCode: raffle.lotteryDrawCode, drawDate } } });
+    const anticipatedPrize = raffle.prizes.find((p) => p.anticipatedDrawCode);
+    const anticipated = anticipatedPrize?.anticipatedDrawCode
+      ? await tx.lotteryResult.findUnique({
+          where: {
+            drawCode_drawDate: {
+              drawCode: anticipatedPrize.anticipatedDrawCode,
+              drawDate: new Date(`${localDateKey(anticipatedPrize.anticipatedDrawAt ?? raffle.drawAt, timezone)}T00:00:00Z`),
+            },
+          },
+        })
+      : null;
+    if (!main && !anticipated) return { source: 'LoteríaYa', main: null, anticipated: null };
+    const present = (r: typeof main) =>
+      r && { drawName: r.drawName, winningNumber: r.winningNumber, winningSeries: r.winningSeries, fifthDigit: r.fifthDigit, status: r.status, receivedAt: r.receivedAt };
+    return { source: 'LoteríaYa', main: present(main), anticipated: present(anticipated) };
+  }
+
+  private fullNumber(raffle: Raffle, r: DrawResult): string | null {
+    if (raffle.digits < 5) return null;
+    try {
+      return composeFullNumber(
+        raffle.digits as Digits,
+        r.mainResult,
+        { source: raffle.extraDigitsSource, position: raffle.extraDigitsPosition },
+        { series: r.seriesResult, fifthDigit: r.fifthDigit },
+      );
+    } catch {
+      return null;
+    }
   }
 
   private pendingReason(p: Prize, result: DrawResult | null): string {
@@ -314,6 +395,13 @@ export class ResultsService {
         result: {
           mainResult: raffle.drawResult.mainResult,
           anticipatedResult: raffle.drawResult.anticipatedResult,
+          seriesResult: raffle.drawResult.seriesResult,
+          fifthDigit: raffle.drawResult.fifthDigit,
+          label: ManagerAlertsService.resultLabel(raffle, raffle.drawResult),
+          /** Número completo en sorteos de 5 y 6 cifras (4 cifras + serie o quinta cifra). */
+          fullNumber: this.fullNumber(raffle, raffle.drawResult),
+          /** Atribución exigida por los términos de LoteríaYa cuando el sorteo usa su catálogo. */
+          attribution: raffle.lotteryDrawCode ? { name: 'LoteríaYa', url: 'https://www.loteriaya.com.co' } : null,
           publishedAt: raffle.resultsPublishedAt,
           evidenceUrls: await Promise.all(raffle.drawResult.evidenceKeys.map((k) => this.storage.signedGetUrl(k, 3600))),
         },

@@ -2,14 +2,13 @@
  * Exporta la colección OpenAPI a api/openapi.json (npm run openapi).
  * Se puede importar en Postman, Insomnia o Bruno.
  */
+import './config/load-env';
 import 'reflect-metadata';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildOpenApi, createApp } from './app.factory';
-import { loadDotEnv } from './config/env';
 
 async function main() {
-  loadDotEnv();
   const app = await createApp();
   await app.init();
   const doc = buildOpenApi(app);

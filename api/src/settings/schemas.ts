@@ -9,6 +9,8 @@ import { z } from 'zod';
 export const PaymentsSettingsV1 = z.object({
   reservationMinutes: z.union([z.literal(30), z.literal(60), z.literal(120)]).default(30),
   requireReceipt: z.boolean().default(true),
+  /** Antibots: máximo de números apartados sin pagar por teléfono y sorteo (0 = sin límite). */
+  maxHeldPerPhone: z.number().int().min(0).max(1000).default(100),
 });
 
 export const RankingSettingsV1 = z.object({
@@ -42,10 +44,29 @@ export const NotificationsSettingsV1 = z.object({
   drawReminder: z.boolean().default(true),
   newRaffleNotice: z.boolean().default(false),
   dailyDigest: z.boolean().default(false),
+  /** Avisar a los gestores (WhatsApp y correo) del resultado de LoteríaYa y de los ganadores. */
+  managerAlerts: z.boolean().default(true),
+  /** Recordar a los gestores los premios sin marcar como entregados. */
+  deliveryReminder: z.boolean().default(false),
+  deliveryReminderHours: z.number().int().min(6).max(240).default(48),
 });
+
+const socialUrl = (host: RegExp) =>
+  z
+    .string()
+    .trim()
+    .max(200)
+    .url('Escribe el enlace completo (https://…).')
+    .refine((u) => u.startsWith('https://') && host.test(new URL(u).hostname), 'Ese enlace no es de la red social indicada.')
+    .nullable()
+    .default(null);
 
 export const BrandingSettingsV1 = z.object({
   hideRifaStarBadge: z.boolean().default(false),
+  /** Redes del organizador en la página pública. */
+  instagramUrl: socialUrl(/(^|\.)instagram\.com$/),
+  facebookUrl: socialUrl(/(^|\.)(facebook|fb)\.com$/),
+  tiktokUrl: socialUrl(/(^|\.)tiktok\.com$/),
 });
 
 export const SETTINGS_SCHEMAS = {

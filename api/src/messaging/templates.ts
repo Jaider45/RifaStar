@@ -71,6 +71,36 @@ export const TEMPLATES = {
     params: (v) => [v.org, v.period, v.top],
     preview: (v) => `Top 10 de ${v.org} (${v.period}): ${v.top}`,
   }),
+  // --- Para el equipo organizador (gestores con permiso de anunciar ganadores) ---
+  phone_verify_code: def<{ code: string }>({
+    meta: 'rs_phone_verify_code',
+    kind: 'transactional',
+    params: (v) => [v.code],
+    preview: (v) => `Rifa Star: tu código para confirmar este WhatsApp es ${v.code}. Vence en 10 minutos. No lo compartas.`,
+  }),
+  manager_lottery_result: def<{ raffle: string; lottery: string; result: string; status: string; link: string }>({
+    meta: 'rs_manager_lottery_result',
+    kind: 'transactional',
+    setting: 'managerAlerts',
+    params: (v) => [v.raffle, v.lottery, v.result, v.status, v.link],
+    preview: (v) =>
+      `Rifa Star: LoteríaYa reportó el resultado de ${v.lottery} para «${v.raffle}»: ${v.result} (${v.status}). ` +
+      `Compáralo con el oficial e ingrésalo en el panel para calcular los ganadores: ${v.link}`,
+  }),
+  manager_winners: def<{ raffle: string; result: string; winners: string; link: string }>({
+    meta: 'rs_manager_winners',
+    kind: 'transactional',
+    setting: 'managerAlerts',
+    params: (v) => [v.raffle, v.result, v.winners, v.link],
+    preview: (v) => `Rifa Star: ganadores de «${v.raffle}» (resultado ${v.result}). ${v.winners}. Contáctalos y marca la entrega aquí: ${v.link}`,
+  }),
+  manager_delivery_reminder: def<{ raffle: string; pending: string; link: string }>({
+    meta: 'rs_manager_delivery_reminder',
+    kind: 'transactional',
+    setting: 'deliveryReminder',
+    params: (v) => [v.raffle, v.pending, v.link],
+    preview: (v) => `Rifa Star: en «${v.raffle}» hay ${v.pending} sin marcar como entregados. Revísalos aquí: ${v.link}`,
+  }),
   daily_digest: def<{ org: string; date: string; collected: string; approved: string; pending: string }>({
     meta: 'rs_daily_digest',
     kind: 'promotional',

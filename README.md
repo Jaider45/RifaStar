@@ -11,7 +11,7 @@ SaaS multi-organización para crear y vender sorteos por enlace público y Whats
 ## Levantar todo en desarrollo
 
 ```bash
-# 1. API, base de datos, Redis, MinIO y Mailpit (datos de ejemplo incluidos)
+# 1. API, base de datos, Redis, almacenamiento S3 (SeaweedFS) y Mailpit (datos de ejemplo incluidos)
 cd api && docker compose up -d --build
 
 # 2. WebApp (otra terminal, desde la raíz)

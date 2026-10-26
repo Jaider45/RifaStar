@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseEnumPipe, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentOrg, OrgScoped, RequirePermission } from '../permissions/decorators';
 import type { OrgContext } from '../tenancy/org-context';
@@ -8,6 +8,8 @@ import {
   CreateRaffleDto,
   DuplicateRaffleDto,
   ListRafflesQuery,
+  MEDIA_KINDS,
+  type MediaKind,
   ReplacePrizesDto,
   UpdateRaffleDto,
   UploadConfirmDto,
@@ -64,6 +66,21 @@ export class RafflesController {
   @RequirePermission('raffles.edit')
   coverConfirm(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UploadConfirmDto) {
     return this.raffles.coverConfirm(org, id, dto.key);
+  }
+
+  /** Galería (`gallery`) o foto de un premio (`prize`): URL firmada para subir. */
+  @Post(':id/media/:kind')
+  @RequirePermission('raffles.edit')
+  media(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string, @Param('kind', new ParseEnumPipe(MEDIA_KINDS)) kind: MediaKind, @Body() dto: UploadRequestDto) {
+    return this.raffles.mediaUpload(org, id, kind, dto);
+  }
+
+  /** Verifica la foto subida y devuelve su key para guardarla en `galleryKeys` o en el premio. */
+  @Post(':id/media/:kind/confirm')
+  @HttpCode(200)
+  @RequirePermission('raffles.edit')
+  mediaConfirm(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string, @Param('kind', new ParseEnumPipe(MEDIA_KINDS)) kind: MediaKind, @Body() dto: UploadConfirmDto) {
+    return this.raffles.mediaConfirm(org, id, kind, dto.key);
   }
 
   @Post(':id/publish')

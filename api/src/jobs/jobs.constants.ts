@@ -10,4 +10,6 @@ export const JOB = {
   dailyDigest: 'daily-digest',
   billingSync: 'billing-sync',
   sendWhatsapp: 'send-whatsapp',
+  lotteryPoll: 'lottery-poll',
+  deliveryReminder: 'delivery-reminder',
 } as const;

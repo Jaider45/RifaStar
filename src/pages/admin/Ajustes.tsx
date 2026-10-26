@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import QRCode from 'qrcode';
 import { uploadToStorage } from '@/api/client';
+import { useSession } from '@/api/session';
 import { useCan, useOrgMutation, useOrgProfile, useOrgQuery } from '@/api/hooks';
 import type { OrgProfile, PaymentAccount, Upload } from '@/api/types';
 import { Badge } from '@/components/Badge';
@@ -15,6 +17,7 @@ import './Ajustes.css';
 
 const TABS = [
   { id: 'negocio', nombre: 'Negocio y marca' },
+  { id: 'seguridad', nombre: 'Seguridad' },
   { id: 'pagos', nombre: 'Pagos' },
   { id: 'ranking', nombre: 'Ranking' },
   { id: 'equipo', nombre: 'Equipo y roles' },
@@ -24,6 +27,13 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 interface Section<T> { revision: number; data: T }
+
+interface Branding {
+  hideRifaStarBadge: boolean;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
+}
 
 function Ajuste({ t, d, children, style }: { t: string; d: string; children?: ReactNode; style?: CSSProperties }) {
   return (
@@ -88,6 +98,7 @@ export default function Ajustes() {
         </div>
         <div className="split__main" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
           {tab === 'negocio' && <Negocio />}
+          {tab === 'seguridad' && <Seguridad />}
           {tab === 'pagos' && <Pagos />}
           {tab === 'ranking' && <RankingAjustes />}
           {tab === 'equipo' && <Equipo />}
@@ -108,7 +119,7 @@ const ZONAS = ['America/Bogota', 'America/Mexico_City', 'America/Lima', 'America
 function Negocio() {
   const can = useCan();
   const { data: org } = useOrgProfile();
-  const branding = useSectionForm<{ hideRifaStarBadge: boolean }>('branding');
+  const branding = useSectionForm<Branding>('branding');
   const [form, setForm] = useState<Pick<OrgProfile, 'name' | 'supportWhatsapp' | 'defaultAccentColor' | 'timezone'> | null>(null);
   const [dominio, setDominio] = useState('');
   const [ok, setOk] = useState<string | null>(null);
@@ -220,14 +231,41 @@ function Negocio() {
             <Switch
               label="Quitar marca de Rifa Star"
               checked={branding.draft.hideRifaStarBadge}
-              onChange={(v) => {
-                branding.setDraft({ hideRifaStarBadge: v });
-              }}
+              onChange={(v) => branding.setDraft({ ...branding.draft!, hideRifaStarBadge: v })}
             />
-            <button type="button" className="rs-btn rs-btn--secundario rs-btn--sm" disabled={!branding.dirty || branding.save.isPending} onClick={() => branding.save.mutateAsync().then(() => setOk('Marca actualizada.')).catch(() => undefined)}>
-              Guardar
-            </button>
           </Ajuste>
+        )}
+        {branding.draft && (
+          <fieldset className="bare-fieldset stack" style={{ gap: 12 }}>
+            <legend className="rs-label">Redes del organizador (se muestran en tus sorteos)</legend>
+            <div className="grid-auto" style={{ '--min': '220px' } as CSSProperties}>
+              {(
+                [
+                  ['instagramUrl', 'Instagram', 'https://www.instagram.com/tunegocio'],
+                  ['facebookUrl', 'Facebook', 'https://www.facebook.com/tunegocio'],
+                  ['tiktokUrl', 'TikTok', 'https://www.tiktok.com/@tunegocio'],
+                ] as const
+              ).map(([k, label, ph]) => (
+                <div key={k}>
+                  <label className="rs-label" htmlFor={k}>{label}</label>
+                  <input
+                    id={k}
+                    className="rs-in"
+                    inputMode="url"
+                    placeholder={ph}
+                    value={branding.draft![k] ?? ''}
+                    onChange={(e) => branding.setDraft({ ...branding.draft!, [k]: e.target.value.trim() || null })}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="ajustes-acciones">
+              <button type="button" className="rs-btn rs-btn--secundario" disabled={!branding.dirty || branding.save.isPending} onClick={branding.reset}>Descartar</button>
+              <button type="button" className="rs-btn rs-btn--primario" disabled={!branding.dirty || branding.save.isPending} onClick={() => branding.save.mutateAsync().then(() => setOk('Marca y redes actualizadas.')).catch(() => undefined)}>
+                Guardar marca y redes
+              </button>
+            </div>
+          </fieldset>
         )}
       </fieldset>
     </section>
@@ -240,7 +278,7 @@ function Negocio() {
 
 function Pagos() {
   const can = useCan();
-  const s = useSectionForm<{ reservationMinutes: 30 | 60 | 120; requireReceipt: boolean }>('payments');
+  const s = useSectionForm<{ reservationMinutes: 30 | 60 | 120; requireReceipt: boolean; maxHeldPerPhone: number }>('payments');
   const accounts = useOrgQuery<PaymentAccount[]>('/v1/payment-accounts');
   const [nueva, setNueva] = useState(false);
   const [ok, setOk] = useState<string | null>(null);
@@ -287,7 +325,21 @@ function Pagos() {
       <Ajuste t="Exigir comprobante" d="El participante debe subir la captura para enviar su pago a verificación.">
         <Switch label="Exigir comprobante" disabled={!editable} checked={s.draft.requireReceipt} onChange={(v) => s.setDraft({ ...s.draft!, requireReceipt: v })} />
       </Ajuste>
-      <Ajuste t="Quién puede aprobar pagos" d="Propietario, administradores y verificadores de pago (o roles con ese permiso).">
+      <Ajuste
+        t="Máximo de números apartados sin pagar"
+        d="Por WhatsApp y sorteo. Evita que alguien (o un bot) aparte todos los números y no pague. 0 = sin límite."
+      >
+        <input
+          className="rs-in rs-mono"
+          aria-label="Máximo de números apartados sin pagar"
+          style={{ width: 110, textAlign: 'center' }}
+          inputMode="numeric"
+          disabled={!editable}
+          value={s.draft.maxHeldPerPhone}
+          onChange={(e) => s.setDraft({ ...s.draft!, maxHeldPerPhone: Math.min(1000, Number(e.target.value.replace(/\D/g, '')) || 0) })}
+        />
+      </Ajuste>
+      <Ajuste t="Quién puede aprobar pagos" d="Propietario, administradores y verificadores de pago (o roles con ese permiso). Nadie aprueba una venta con su propio código de vendedor.">
         <Link to="/admin/ajustes?tab=equipo" className="rs-btn rs-btn--fantasma rs-btn--sm">Ver roles</Link>
       </Ajuste>
       {editable && <div style={{ padding: '0 24px 24px' }}><Acciones dirty={s.dirty} saving={s.save.isPending} onReset={s.reset} onSave={() => s.save.mutateAsync().then(() => setOk('Cambios guardados.')).catch(() => undefined)} /></div>}
@@ -611,7 +663,15 @@ function EditorRol({ rol, onClose, onDone }: { rol: RoleRow | null; onClose: () 
 
 function Notificaciones() {
   const can = useCan();
-  const s = useSectionForm<{ purchaseConfirmation: boolean; drawReminder: boolean; newRaffleNotice: boolean; dailyDigest: boolean }>('notifications');
+  const s = useSectionForm<{
+    purchaseConfirmation: boolean;
+    drawReminder: boolean;
+    newRaffleNotice: boolean;
+    dailyDigest: boolean;
+    managerAlerts: boolean;
+    deliveryReminder: boolean;
+    deliveryReminderHours: number;
+  }>('notifications');
   const [ok, setOk] = useState<string | null>(null);
   if (!s.draft) return <Loading />;
   const d = s.draft;
@@ -632,6 +692,32 @@ function Notificaciones() {
       </Ajuste>
       <Ajuste t="Resumen diario para mí" d="Ventas y pagos pendientes a las 8:00 p. m., al WhatsApp de soporte.">
         <Switch label="Resumen diario" disabled={!editable} checked={d.dailyDigest} onChange={(v) => s.setDraft({ ...d, dailyDigest: v })} />
+      </Ajuste>
+      <Ajuste
+        t="Avisos al equipo: resultado y ganadores"
+        d="Por WhatsApp y correo a todos los gestores (con permiso de anunciar ganadores): el resultado que reporta LoteríaYa y, al ingresar el resultado, los ganadores con su contacto. El WhatsApp llega a quien tenga su número verificado en Ajustes › Seguridad."
+      >
+        <Switch label="Avisos al equipo" disabled={!editable} checked={d.managerAlerts} onChange={(v) => s.setDraft({ ...d, managerAlerts: v })} />
+      </Ajuste>
+      <Ajuste t="Recordatorio de entrega de premios" d="Si un premio con ganador sigue sin marcarse como entregado, se le recuerda al equipo cada cierto tiempo.">
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {d.deliveryReminder && (
+            <select
+              className="rs-in"
+              aria-label="Cada cuánto recordar"
+              style={{ width: 150 }}
+              disabled={!editable}
+              value={d.deliveryReminderHours}
+              onChange={(e) => s.setDraft({ ...d, deliveryReminderHours: Number(e.target.value) })}
+            >
+              <option value={24}>Cada 24 horas</option>
+              <option value={48}>Cada 48 horas</option>
+              <option value={72}>Cada 3 días</option>
+              <option value={168}>Cada semana</option>
+            </select>
+          )}
+          <Switch label="Recordatorio de entrega" disabled={!editable} checked={d.deliveryReminder} onChange={(v) => s.setDraft({ ...d, deliveryReminder: v })} />
+        </div>
       </Ajuste>
       {editable && <div style={{ padding: '0 24px 24px' }}><Acciones dirty={s.dirty} saving={s.save.isPending} onReset={s.reset} onSave={() => s.save.mutateAsync().then(() => setOk('Cambios guardados.')).catch(() => undefined)} /></div>}
     </section>
@@ -773,5 +859,183 @@ function Uso({ t, pct, d }: { t: string; pct: number; d: string }) {
       <div className="rs-progreso" style={{ margin: '8px 0 6px' }}><span style={{ width: `${pct}%` }} /></div>
       <div className="setting__d">{d}</div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Seguridad: verificación en dos pasos, WhatsApp del gestor y sesiones
+// ---------------------------------------------------------------------------
+
+interface SessionRow {
+  id: string;
+  device: string;
+  ip: string | null;
+  startedAt: string;
+  lastUsedAt: string;
+  current: boolean;
+}
+
+function Seguridad() {
+  const session = useSession();
+  const me = session.me;
+  const [ok, setOk] = useState<string | null>(null);
+  const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
+  const [codigo, setCodigo] = useState('');
+  const [desactivar, setDesactivar] = useState({ code: '', password: '' });
+  const [telefono, setTelefono] = useState('');
+  const [codigoTel, setCodigoTel] = useState('');
+  const [esperandoCodigo, setEsperandoCodigo] = useState(false);
+  const sesiones = useOrgQuery<SessionRow[]>('/v1/auth/sessions');
+
+  const iniciar2fa = useOrgMutation<void>(async (_v, req) => {
+    const r = await req<{ otpauthUrl: string; secret: string }>('/v1/auth/2fa/setup', { method: 'POST' });
+    setSetup({ secret: r.secret, qr: await QRCode.toDataURL(r.otpauthUrl, { margin: 1, width: 200 }) });
+  });
+  const activar2fa = useOrgMutation<void>(async (_v, req) => {
+    await req('/v1/auth/2fa/enable', { body: { code: codigo } });
+    setSetup(null);
+    setCodigo('');
+    await session.refreshMe();
+  });
+  const quitar2fa = useOrgMutation<void>(async (_v, req) => {
+    await req('/v1/auth/2fa/disable', { body: desactivar });
+    setDesactivar({ code: '', password: '' });
+    await session.refreshMe();
+  });
+  const pedirCodigo = useOrgMutation<void, { devCode?: string }>((_v, req) => req('/v1/me/phone', { body: { phone: telefono } }));
+  const verificarTel = useOrgMutation<void>(async (_v, req) => {
+    await req('/v1/me/phone/verify', { body: { code: codigoTel } });
+    setEsperandoCodigo(false);
+    setCodigoTel('');
+    await session.refreshMe();
+  });
+  const cerrarSesion = useOrgMutation<string>((id, req) => req(`/v1/auth/sessions/${id}`, { method: 'DELETE' }).then(() => undefined));
+  const cerrarOtras = useOrgMutation<void, { closed: number }>((_v, req) => req('/v1/auth/sessions/revoke-others', { method: 'POST' }));
+
+  if (!me) return <Loading />;
+  const error = iniciar2fa.error ?? activar2fa.error ?? quitar2fa.error ?? pedirCodigo.error ?? verificarTel.error ?? cerrarSesion.error ?? cerrarOtras.error ?? sesiones.error;
+
+  return (
+    <section className="rs-panel setting-panel">
+      <h2 className="h2 h2--lg setting-panel__title">Seguridad</h2>
+      {ok && <OkNote>{ok}</OkNote>}
+      <ErrorNote error={error} />
+
+      <Ajuste
+        t="Verificación en dos pasos"
+        d={
+          me.twoFactorEnabled
+            ? 'Activa. Al entrar te pedimos el código de tu app de autenticación (Google Authenticator, Authy…).'
+            : me.twoFactorRequired
+              ? 'Obligatoria para tu rol: sin ella no puedes aprobar pagos, anunciar ganadores ni manejar el equipo.'
+              : 'Recomendada: protege tu cuenta aunque alguien conozca tu contraseña.'
+        }
+      >
+        {me.twoFactorEnabled ? (
+          <Badge tono="abierto">Activa</Badge>
+        ) : (
+          !setup && (
+            <button type="button" className="rs-btn rs-btn--primario rs-btn--sm" disabled={iniciar2fa.isPending} onClick={() => iniciar2fa.mutate()}>
+              Activar
+            </button>
+          )
+        )}
+      </Ajuste>
+      {setup && !me.twoFactorEnabled && (
+        <div className="seguridad-2fa">
+          <img src={setup.qr} alt="Código QR para tu app de autenticación" width={200} height={200} />
+          <div className="stack" style={{ gap: 10 }}>
+            <p className="rs-help" style={{ margin: 0 }}>
+              1. Escanea el código con tu app de autenticación (o escribe la clave <b className="rs-mono">{setup.secret}</b>).<br />
+              2. Escribe el código de 6 dígitos que muestra la app.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="rs-in rs-mono" style={{ width: 140, textAlign: 'center', letterSpacing: '.2em' }} inputMode="numeric" maxLength={6} aria-label="Código de 6 dígitos" value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))} />
+              <button type="button" className="rs-btn rs-btn--primario" disabled={codigo.length !== 6 || activar2fa.isPending} onClick={() => activar2fa.mutateAsync().then(() => setOk('Verificación en dos pasos activada.')).catch(() => undefined)}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {me.twoFactorEnabled && !me.twoFactorRequired && (
+        <Ajuste t="Desactivar la verificación en dos pasos" d="Te pedimos tu contraseña y un código vigente.">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <input className="rs-in" type="password" style={{ width: 170 }} placeholder="Contraseña" aria-label="Contraseña" value={desactivar.password} onChange={(e) => setDesactivar({ ...desactivar, password: e.target.value })} />
+            <input className="rs-in rs-mono" style={{ width: 110 }} inputMode="numeric" maxLength={6} placeholder="Código" aria-label="Código" value={desactivar.code} onChange={(e) => setDesactivar({ ...desactivar, code: e.target.value.replace(/\D/g, '') })} />
+            <button type="button" className="rs-btn rs-btn--secundario rs-btn--sm" style={{ color: 'var(--rojo-texto)' }} disabled={quitar2fa.isPending || desactivar.code.length !== 6 || !desactivar.password} onClick={() => quitar2fa.mutateAsync().then(() => setOk('Verificación en dos pasos desactivada.')).catch(() => undefined)}>
+              Desactivar
+            </button>
+          </div>
+        </Ajuste>
+      )}
+
+      <Ajuste
+        t="Tu WhatsApp para avisos"
+        d={
+          me.phoneVerified && me.phone
+            ? `Verificado: ${formatPhone(me.phone)}. Aquí te llegan el resultado de LoteríaYa y los ganadores de tus sorteos.`
+            : 'Verifícalo para recibir por WhatsApp el resultado de LoteríaYa y los ganadores de tus sorteos (también te llegan por correo).'
+        }
+      >
+        {!esperandoCodigo && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="rs-in rs-mono" style={{ width: 170 }} inputMode="tel" placeholder="300 123 4567" aria-label="Tu WhatsApp" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+            <button
+              type="button"
+              className="rs-btn rs-btn--secundario rs-btn--sm"
+              disabled={pedirCodigo.isPending || telefono.replace(/\D/g, '').length < 7}
+              onClick={() =>
+                pedirCodigo
+                  .mutateAsync()
+                  .then((r) => {
+                    setEsperandoCodigo(true);
+                    setOk(r.devCode ? `Código enviado. En desarrollo (sin WhatsApp real) es ${r.devCode}.` : 'Te enviamos un código por WhatsApp.');
+                  })
+                  .catch(() => undefined)
+              }
+            >
+              {me.phoneVerified ? 'Cambiar' : 'Enviar código'}
+            </button>
+          </div>
+        )}
+        {esperandoCodigo && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="rs-in rs-mono" style={{ width: 120, textAlign: 'center' }} inputMode="numeric" maxLength={6} placeholder="000000" aria-label="Código recibido" value={codigoTel} onChange={(e) => setCodigoTel(e.target.value.replace(/\D/g, ''))} />
+            <button type="button" className="rs-btn rs-btn--primario rs-btn--sm" disabled={codigoTel.length !== 6 || verificarTel.isPending} onClick={() => verificarTel.mutateAsync().then(() => setOk('WhatsApp verificado.')).catch(() => undefined)}>
+              Verificar
+            </button>
+          </div>
+        )}
+      </Ajuste>
+
+      <Ajuste t="Sesiones abiertas" d="Equipos donde tu cuenta tiene la sesión iniciada. Si no reconoces alguno, ciérralo y cambia tu contraseña.">
+        <button
+          type="button"
+          className="rs-btn rs-btn--secundario rs-btn--sm"
+          disabled={cerrarOtras.isPending || (sesiones.data?.length ?? 0) < 2}
+          onClick={() => cerrarOtras.mutateAsync().then((r) => setOk(`Cerramos ${r.closed} ${r.closed === 1 ? 'sesión' : 'sesiones'}.`)).catch(() => undefined)}
+        >
+          Cerrar las demás
+        </button>
+      </Ajuste>
+      <div className="list-card" style={{ margin: '0 24px 24px' }}>
+        {sesiones.isLoading && <Loading />}
+        {(sesiones.data ?? []).map((x) => (
+          <div key={x.id} className="list-row" style={{ justifyContent: 'space-between' }}>
+            <span>
+              <b>{x.device}</b> {x.current && <Badge tono="abierto">Este equipo</Badge>}
+              <br />
+              <span className="cell-sub">Desde {formatDay(x.startedAt)} · activa {timeAgo(x.lastUsedAt)}{x.ip ? ` · IP ${x.ip}` : ''}</span>
+            </span>
+            {!x.current && (
+              <button type="button" className="rs-btn rs-btn--fantasma rs-btn--sm" style={{ color: 'var(--rojo-texto)' }} onClick={() => cerrarSesion.mutateAsync(x.id).then(() => setOk('Sesión cerrada.')).catch(() => undefined)}>
+                Cerrar
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

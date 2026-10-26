@@ -10,7 +10,7 @@ describe('Ajustes por sección', () => {
   it('valores por defecto, actualización con revisión y conflicto', async () => {
     const t = await createOrg(ctx);
     const all = await ctx.http.get('/v1/settings').set(as(t.ownerToken, t.org.id)).expect(200);
-    expect(all.body.payments).toEqual({ revision: 1, data: { reservationMinutes: 30, requireReceipt: true } });
+    expect(all.body.payments).toEqual({ revision: 1, data: { reservationMinutes: 30, requireReceipt: true, maxHeldPerPhone: 100 } });
     expect(all.body.ranking.data).toMatchObject({ frequency: 'monthly', tiebreaker: 'first_to_reach', nameFormat: 'first_name_initial' });
 
     const upd = await ctx.http

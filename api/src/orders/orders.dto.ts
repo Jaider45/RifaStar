@@ -7,7 +7,7 @@ export const ReserveInput = z
     name: z.string().trim().min(2, 'Escribe tu nombre.').max(80),
     phone: z.string().trim().min(7, 'Escribe tu número de WhatsApp.').max(20),
     numbers: z
-      .array(z.number().int().min(0).max(9999))
+      .array(z.number().int().min(0).max(999_999))
       .min(1)
       .max(500)
       .refine((a) => new Set(a).size === a.length, 'Hay números repetidos.')

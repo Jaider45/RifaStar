@@ -17,3 +17,8 @@
 .pieza__regla { font: 600 15px/20px var(--font-sans); color: var(--tinta-suave); }
 .pieza__regla b { font-size: 24px; color: var(--tinta); }
 .pieza__pie { font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
+
+.reporte { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-color: var(--verde-profundo); }
+.reporte__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.reporte__fila { display: flex; justify-content: space-between; gap: 12px; font: 600 15px/22px var(--font-sans); }
+.resultado__confirmar { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }

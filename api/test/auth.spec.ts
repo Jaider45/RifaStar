@@ -52,7 +52,7 @@ describe('Autenticación de usuarios de organización', () => {
   });
 
   it('login con credenciales incorrectas responde 401 sin revelar cuál falló', async () => {
-    const user = await createUser(ctx);
+    const user = await createUser(ctx, undefined, { twoFactor: false });
     const res = await ctx.http.post('/v1/auth/login').send({ email: user.email, password: 'otra-cosa-123' }).expect(401);
     expect(res.body).toEqual({ code: 'AUTH_INVALID_CREDENTIALS', message: 'El correo o la contraseña no son correctos.' });
     const unknown = await ctx.http.post('/v1/auth/login').send({ email: `x-${uid()}@prueba.co`, password: 'otra-cosa-123' }).expect(401);
@@ -60,7 +60,7 @@ describe('Autenticación de usuarios de organización', () => {
   });
 
   it('el refresh token rota y su reutilización revoca toda la familia', async () => {
-    const user = await createUser(ctx);
+    const user = await createUser(ctx, undefined, { twoFactor: false });
     const login = await ctx.http.post('/v1/auth/login').send({ email: user.email, password: TEST_PASSWORD }).expect(200);
     const rt1 = cookieValue(login, 'rs_rt')!;
 
@@ -75,7 +75,7 @@ describe('Autenticación de usuarios de organización', () => {
   });
 
   it('logout revoca el refresh token', async () => {
-    const user = await createUser(ctx);
+    const user = await createUser(ctx, undefined, { twoFactor: false });
     const login = await ctx.http.post('/v1/auth/login').send({ email: user.email, password: TEST_PASSWORD }).expect(200);
     const rt = cookieValue(login, 'rs_rt')!;
     await ctx.http.post('/v1/auth/logout').set('Cookie', `rs_rt=${rt}`).expect(204);
@@ -83,7 +83,7 @@ describe('Autenticación de usuarios de organización', () => {
   });
 
   it('2FA opcional: una vez activo, el login exige el código', async () => {
-    const user = await createUser(ctx);
+    const user = await createUser(ctx, undefined, { twoFactor: false });
     const token = ctx.tokens.signAccess({ typ: 'user', sub: user.id });
     const setup = await ctx.http.post('/v1/auth/2fa/setup').set('Authorization', `Bearer ${token}`).expect(201);
     await ctx.http
@@ -102,7 +102,7 @@ describe('Autenticación de usuarios de organización', () => {
   });
 
   it('recuperación de contraseña por correo', async () => {
-    const user = await createUser(ctx);
+    const user = await createUser(ctx, undefined, { twoFactor: false });
     await ctx.http.post('/v1/auth/password/forgot').send({ email: user.email }).expect(202);
     // Correo inexistente: misma respuesta.
     await ctx.http.post('/v1/auth/password/forgot').send({ email: `nadie-${uid()}@prueba.co` }).expect(202);

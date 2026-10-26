@@ -15,7 +15,13 @@ import { Errors } from '../common/errors';
 import { PublicAccessService } from './public-access.service';
 import { PublicRafflesService } from './public-raffles.service';
 
-class NumbersQuery extends createZodDto(z.object({ status: z.enum(['all', 'available']).default('all') })) {}
+class NumbersQuery extends createZodDto(
+  z.object({
+    status: z.enum(['all', 'available']).default('all'),
+    /** Sorteos de 5 y 6 cifras: bloque de 1.000 números (0 = 000000–000999). Sin bloque: resumen por bloques. */
+    block: z.coerce.number().int().min(0).max(999).optional(),
+  }),
+) {}
 class NotifyMeDto extends createZodDto(
   z.object({ name: z.string().trim().min(2).max(80), phone: z.string().trim().min(7).max(20) }),
 ) {}
@@ -88,7 +94,7 @@ export class PublicController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const org = await this.access.org(orgSlug);
-    const grid = await this.raffles.numbers(org, raffleSlug, query.status);
+    const grid = await this.raffles.numbers(org, raffleSlug, query.status, query.block);
     res.setHeader('Cache-Control', 'public, max-age=3');
     res.setHeader('ETag', grid.etag);
     if (req.header('if-none-match') === grid.etag) {

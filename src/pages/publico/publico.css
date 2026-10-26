@@ -27,9 +27,9 @@
 .venta__progreso-txt { display: flex; justify-content: space-between; margin-top: 8px; font: 500 13px/18px var(--font-sans); color: var(--tinta-suave); }
 .venta__progreso-txt b { color: var(--tinta); }
 .venta__premio { justify-content: space-between; }
-.venta__premio-monto { font-weight: 800; white-space: nowrap; font-size: 20px; line-height: 24px; }
+.venta__premio-monto { font-weight: 800; font-size: 20px; line-height: 24px; min-width: 0; overflow-wrap: anywhere; }
 .venta__premio-monto--mayor { font-size: 26px; line-height: 30px; color: var(--estrella); }
-.venta__premio-regla { font: 500 14px/19px var(--font-sans); color: var(--tinta-suave); text-align: right; }
+.venta__premio-regla { font: 500 14px/19px var(--font-sans); color: var(--tinta-suave); text-align: right; flex: 0 1 40%; }
 .venta__libres { font: 600 13px/18px var(--font-sans); color: var(--tinta-suave); }
 .buscar { flex: 1; position: relative; }
 .buscar__icono { position: absolute; left: 12px; top: 13px; color: var(--tinta-suave); }
@@ -54,7 +54,7 @@
 .pasos-compra li[aria-current="step"] { color: var(--tinta); }
 .pasos-compra li[aria-current="step"]::before { background: var(--tinta); }
 .resumen-pago { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.boleto-chip { min-width: 56px; padding: 10px 0; text-align: center; border-radius: var(--radius-sm); background: var(--verde); color: var(--on-verde); font-size: 18px; font-weight: 700; }
+.boleto-chip { min-width: 56px; padding: 10px 8px; text-align: center; border-radius: var(--radius-sm); background: var(--verde); color: var(--on-verde); font-size: 18px; font-weight: 700; }
 .resumen-pago__total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; border-top: 1px solid var(--linea); }
 .resumen-pago__total span:first-child { font: 500 14px/20px var(--font-sans); color: var(--tinta-suave); }
 .resumen-pago__total span:last-child { font-size: 28px; line-height: 32px; font-weight: 800; }
@@ -110,3 +110,30 @@
 .rank-row__pos { width: 28px; font-weight: 700; color: var(--tinta-suave); }
 .rank-row__nombre { flex: 1; min-width: 0; font: 600 15px/20px var(--font-sans); }
 .rank-row--tu .rank-row__nombre { font-weight: 800; }
+
+/* Personalización y sorteos grandes */
+.galeria { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 0; }
+.galeria__mini { flex: none; width: 56px; height: 56px; padding: 0; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background: var(--superficie-alta); cursor: pointer; }
+.galeria__mini[aria-selected="true"] { border-color: var(--acento, var(--verde)); }
+.galeria__mini img { width: 100%; height: 100%; object-fit: cover; }
+.galeria__mini:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.venta__descripcion { padding: 16px; }
+.texto-formato { display: flex; flex-direction: column; gap: 10px; font: 500 15px/22px var(--font-sans); }
+.texto-formato p, .texto-formato ul { margin: 0; }
+.texto-formato ul { padding-left: 20px; }
+.venta__premio-foto { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex: none; }
+.numeros--anchos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rs-num--buscado { outline: 2px solid var(--foco); outline-offset: 1px; }
+.venta__azar { padding: 16px; text-align: center; }
+.cantidad { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.cantidad__valor { font-size: 44px; line-height: 48px; font-weight: 800; min-width: 72px; }
+.faq { padding: 12px 0; border-bottom: 1px solid var(--linea); }
+.faq:last-child { border-bottom: 0; }
+.faq summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; font: 700 15px/22px var(--font-sans); }
+.faq summary::-webkit-details-marker { display: none; }
+.faq[open] summary svg { transform: rotate(180deg); }
+.faq p { margin: 8px 0 0; font: 500 14px/20px var(--font-sans); color: var(--tinta-suave); }
+.redes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+/* Tema claro: la barra de compra y las insignias usan la superficie del tema */
+.pub--claro .resumen-compra { background: var(--superficie); }
+.pub--claro .portada__badge { background: var(--superficie); color: var(--verde-texto); }

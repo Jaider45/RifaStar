@@ -32,6 +32,9 @@ describe('Órdenes, comprobantes y verificación de pagos', () => {
       const ok = await upload(o.orderId, o.accessToken, 'application/pdf', 5000).expect(201);
       expect(ok.body.key).toMatch(new RegExp(`^receipts/${t.org.id}/${o.orderId}/.+\\.pdf$`));
       expect(ok.body.maxBytes).toBe(10 * 1024 * 1024);
+      // Subida con PUT (compatible con R2): el tipo y el tamaño declarados quedan en la firma.
+      expect(ok.body).toMatchObject({ method: 'PUT', headers: { 'Content-Type': 'application/pdf' } });
+      expect(storage(ctx).presigned.at(-1)).toMatchObject({ key: ok.body.key, contentType: 'application/pdf', size: 5000 });
     });
 
     it('valida el contenido real, no la extensión', async () => {
@@ -82,7 +85,8 @@ describe('Órdenes, comprobantes y verificación de pagos', () => {
       expect(orders.find((o) => o.id === plain.orderId)?.status).toBe('expired');
       expect(orders.find((o) => o.id === withReceipt.orderId)?.status).toBe('pending_verification');
       const nums = await ctx.db.system.raffleNumber.findMany({ where: { raffleId: raffle.id, number: { in: [20, 21, 22] } }, orderBy: { number: 'asc' } });
-      expect(nums.map((n) => n.status)).toEqual(['available', 'available', 'pending_verification']);
+      // Los vencidos quedan libres: sin fila (raffle_numbers guarda solo los tomados).
+      expect(nums.map((n) => [n.number, n.status])).toEqual([[22, 'pending_verification']]);
       const r = await ctx.db.system.raffle.findUniqueOrThrow({ where: { id: raffle.id } });
       expect(r.heldCount).toBe(1);
 
@@ -182,8 +186,8 @@ describe('Órdenes, comprobantes y verificación de pagos', () => {
       const o = await reserveAndSubmit(ctx, t, raffle.slug, [15]);
       const res = await ctx.http.post(`/v1/orders/${o.orderId}/reject`).set(as(verifier.token, t.org.id)).send({ reason: 'El valor no coincide' }).expect(200);
       expect(res.body).toMatchObject({ status: 'rejected', rejectionReason: 'El valor no coincide' });
-      const n = await ctx.db.system.raffleNumber.findUniqueOrThrow({ where: { raffleId_number: { raffleId: raffle.id, number: 15 } } });
-      expect(n).toMatchObject({ status: 'available', orderId: null });
+      // Libre = sin fila.
+      expect(await ctx.db.system.raffleNumber.findUnique({ where: { raffleId_number: { raffleId: raffle.id, number: 15 } } })).toBeNull();
       const pub = await ctx.http.get(`/v1/public/orders/${o.orderId}`).set('X-Order-Token', o.accessToken).expect(200);
       expect(pub.body).toMatchObject({ status: 'rejected', rejectionReason: 'El valor no coincide' });
     });

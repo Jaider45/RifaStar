@@ -12,7 +12,11 @@ export interface Me {
   id: string;
   email: string;
   name: string;
+  phone: string | null;
+  phoneVerified: boolean;
   twoFactorEnabled: boolean;
+  /** Algún rol suyo aprueba pagos, anuncia ganadores o maneja el equipo. */
+  twoFactorRequired: boolean;
   memberships: Membership[];
 }
 
@@ -52,7 +56,37 @@ export interface Prize {
   ruleLabel: string;
   customRuleText?: string | null;
   anticipatedLottery: string | null;
+  anticipatedDrawCode?: string | null;
   anticipatedDrawAt: string | null;
+  imageKey?: string | null;
+  imageUrl?: string | null;
+}
+
+export type Digits = 2 | 3 | 4 | 5 | 6;
+export type NumberSelection = 'choose' | 'random';
+export type ExtraDigitsSource = 'series' | 'fifth_digit';
+export type ExtraDigitsPosition = 'start' | 'end';
+
+/** Personalización de la página pública. */
+export interface PageConfig {
+  theme: 'dark' | 'light';
+  description: string | null;
+  faq: { q: string; a: string }[];
+  show: { countdown: boolean; progress: boolean; remaining: boolean; organizer: boolean; ranking: boolean; social: boolean };
+}
+
+export const DEFAULT_PAGE: PageConfig = {
+  theme: 'dark',
+  description: null,
+  faq: [],
+  show: { countdown: true, progress: true, remaining: true, organizer: true, ranking: true, social: true },
+};
+
+/** Sorteo del catálogo de LoteríaYa. */
+export interface DrawInfo {
+  code: string;
+  name: string;
+  category: string;
 }
 
 export type RaffleStatus = 'draft' | 'active' | 'sold_out' | 'closed' | 'drawn' | 'cancelled';
@@ -64,13 +98,19 @@ export interface Raffle {
   publicUrl: string;
   title: string;
   lottery: string;
+  lotteryDrawCode: string | null;
   drawAt: string;
   salesCloseAt: string | null;
   pricePerNumber: number;
-  digits: 2 | 3 | 4;
+  digits: Digits;
   totalNumbers: number;
   minPerOrder: number;
+  numberSelection: NumberSelection;
+  extraDigitsSource: ExtraDigitsSource | null;
+  extraDigitsPosition: ExtraDigitsPosition;
   accentColor: string | null;
+  pageConfig: PageConfig;
+  gallery: { key: string; url: string }[];
   conditionText: string | null;
   authorizationNumber: string | null;
   status: RaffleStatus;
@@ -107,11 +147,17 @@ export interface Order {
   rejectionReason: string | null;
   tickets: { code: string; number: string }[];
   receiptUrl?: string | null;
+  /** Antifraude para quien verifica. */
+  alerts?: {
+    duplicateReceipt: { orderId: string; participantName: string; raffle: string; status: string; createdAt: string }[];
+    ownSale: boolean;
+  };
 }
 
 export interface Upload {
   url: string;
-  fields: Record<string, string>;
+  method: 'PUT';
+  headers: Record<string, string>;
   key: string;
   expiresAt: string;
   maxBytes: number;

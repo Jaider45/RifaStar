@@ -49,6 +49,15 @@ const EnvSchema = z.object({
   /** Base del reintento exponencial de send-whatsapp (ms). */
   MESSAGES_RETRY_BASE_MS: z.coerce.number().int().positive().default(30_000),
 
+  /** Resultados de loterías (informativos): LoteríaYa o un proveedor falso para desarrollo y tests. */
+  LOTTERY_DRIVER: z.enum(['loteriaya', 'fake']).default('fake'),
+  LOTERIAYA_BASE_URL: z.string().url().default('https://www.loteriaya.com.co/v1'),
+  LOTERIAYA_API_KEY: z.string().default(''),
+  /** Secreto HMAC-SHA256 de los webhooks (lo entrega LoteríaYa al dar de alta la clave). */
+  LOTERIAYA_WEBHOOK_SECRET: z.string().default(''),
+  /** Cabecera con la firma. Confírmala con la especificación que envía LoteríaYa por correo. */
+  LOTERIAYA_SIGNATURE_HEADER: z.string().default('x-loteriaya-signature'),
+
   BILLING_DRIVER: z.enum(['stripe', 'fake']).default('fake'),
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),

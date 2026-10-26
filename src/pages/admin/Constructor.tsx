@@ -2,7 +2,19 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { uploadToStorage } from '@/api/client';
 import { useCan, useOrgMutation, useOrgProfile, useOrgQuery } from '@/api/hooks';
-import type { PaymentAccount, PrizeRule, Raffle, Upload } from '@/api/types';
+import {
+  DEFAULT_PAGE,
+  type Digits,
+  type DrawInfo,
+  type ExtraDigitsPosition,
+  type ExtraDigitsSource,
+  type NumberSelection,
+  type PageConfig,
+  type PaymentAccount,
+  type PrizeRule,
+  type Raffle,
+  type Upload,
+} from '@/api/types';
 import { Icon } from '@/components/Icon';
 import { Logo } from '@/components/Logo';
 import { PageHeader } from '@/components/PageHeader';
@@ -25,7 +37,7 @@ const PASOS = [
 ];
 
 /** Reglas de premio por cifras (P3: coincidencia exacta). */
-const REGLAS: Record<2 | 3 | 4, { rule: PrizeRule; label: string }[]> = {
+const REGLAS: Record<Digits, { rule: PrizeRule; label: string }[]> = {
   2: [
     { rule: 'last_two', label: 'Dos últimas cifras' },
     { rule: 'first_two', label: 'Dos primeras cifras' },
@@ -45,8 +57,26 @@ const REGLAS: Record<2 | 3 | 4, { rule: PrizeRule; label: string }[]> = {
     { rule: 'anticipated_full_number', label: 'Anticipado (número completo)' },
     { rule: 'custom', label: 'Regla especial' },
   ],
+  5: [
+    { rule: 'full_number', label: 'Número completo (5 cifras)' },
+    { rule: 'custom', label: 'Regla especial' },
+  ],
+  6: [
+    { rule: 'full_number', label: 'Número completo (6 cifras)' },
+    { rule: 'custom', label: 'Regla especial' },
+  ],
 };
 const ANTICIPADO: PrizeRule[] = ['anticipated_last_two', 'anticipated_full_number'];
+const CIFRAS: Digits[] = [2, 3, 4, 5, 6];
+/** Sin código de LoteríaYa: no se consulta el resultado automáticamente. */
+const PROPIO = '';
+
+/** «4058 · serie 127 → 40587»: ejemplo de cómo se arma el número de 5 o 6 cifras. */
+function ejemploNumero(cifras: Digits, fuente: ExtraDigitsSource, posicion: ExtraDigitsPosition): string {
+  const extra = fuente === 'fifth_digit' ? '3' : cifras === 6 ? '27' : '7';
+  const fuenteTxt = fuente === 'fifth_digit' ? 'quinta cifra 3' : 'serie 127';
+  return `Resultado 4058 · ${fuenteTxt} → ${posicion === 'start' ? extra + '4058' : '4058' + extra}`;
+}
 
 const TIPOS_CUENTA = [
   { id: 'bre_b', label: 'Llave Bre-B' },
@@ -62,7 +92,11 @@ interface PremioForm {
   rule: PrizeRule;
   custom: string;
   anticipadoLoteria: string;
+  /** Código de LoteríaYa del anticipado (`antioquenita-tarde`) o vacío si es otra. */
+  anticipadoCodigo: string;
   anticipadoHora: string;
+  imageKey: string | null;
+  imageUrl: string | null;
 }
 
 let seq = 0;
@@ -72,8 +106,11 @@ const nuevoPremio = (rule: PrizeRule, monto = ''): PremioForm => ({
   descripcion: '',
   rule,
   custom: '',
-  anticipadoLoteria: 'Antioqueñita',
+  anticipadoLoteria: 'Antioqueñita Tarde',
+  anticipadoCodigo: 'antioquenita-tarde',
   anticipadoHora: '16:00',
+  imageKey: null,
+  imageUrl: null,
 });
 
 /** Próximo sábado (fecha local «YYYY-MM-DD»). */
@@ -93,16 +130,25 @@ export default function Constructor() {
   const existing = useOrgQuery<Raffle>(id ? `/v1/raffles/${id}` : null);
   const accounts = useOrgQuery<PaymentAccount[]>(can('payments.view') ? '/v1/payment-accounts' : null);
   const paymentsSettings = useOrgQuery<{ revision: number; data: { reservationMinutes: number; requireReceipt: boolean } }>('/v1/settings/payments');
+  const catalogo = useOrgQuery<DrawInfo[]>('/v1/lotteries', { staleTime: 3_600_000 });
+  const loteriasCat = (catalogo.data ?? []).filter((d) => d.category === 'loteria');
+  const chancesCat = (catalogo.data ?? []).filter((d) => d.category === 'chance');
 
   const [paso, setPaso] = useState('info');
   const [titulo, setTitulo] = useState('');
-  const [loteria, setLoteria] = useState(LOTERIAS[0]);
+  const [loteria, setLoteria] = useState('Lotería de Boyacá');
+  const [loteriaCodigo, setLoteriaCodigo] = useState('loteria-de-boyaca');
   const [fecha, setFecha] = useState(proximoSabado);
   const [hora, setHora] = useState('22:40');
   const [cierre, setCierre] = useState('15:30');
   const [precio, setPrecio] = useState('6000');
   const [minimo, setMinimo] = useState('1');
-  const [cifras, setCifras] = useState<2 | 3 | 4>(2);
+  const [cifras, setCifras] = useState<Digits>(2);
+  const [seleccion, setSeleccion] = useState<NumberSelection>('choose');
+  const [fuenteExtra, setFuenteExtra] = useState<ExtraDigitsSource>('series');
+  const [posicionExtra, setPosicionExtra] = useState<ExtraDigitsPosition>('end');
+  const [pagina, setPagina] = useState<PageConfig>(DEFAULT_PAGE);
+  const [galeria, setGaleria] = useState<{ key: string; url: string }[]>([]);
   const [premios, setPremios] = useState<PremioForm[]>(() => [nuevoPremio('last_two', '200000')]);
   const [condicion, setCondicion] = useState('');
   const [autorizacion, setAutorizacion] = useState('');
@@ -126,19 +172,28 @@ export default function Constructor() {
     const draw = isoToZoned(raffle.drawAt, tz);
     setTitulo(raffle.title);
     setLoteria(raffle.lottery);
+    setLoteriaCodigo(raffle.lotteryDrawCode ?? PROPIO);
     setFecha(draw.date);
     setHora(draw.time);
     setCierre(raffle.salesCloseAt ? isoToZoned(raffle.salesCloseAt, tz).time : '');
     setPrecio(String(raffle.pricePerNumber));
     setMinimo(String(raffle.minPerOrder));
     setCifras(raffle.digits);
+    setSeleccion(raffle.numberSelection);
+    setFuenteExtra(raffle.extraDigitsSource ?? 'series');
+    setPosicionExtra(raffle.extraDigitsPosition);
+    setPagina({ ...DEFAULT_PAGE, ...raffle.pageConfig, show: { ...DEFAULT_PAGE.show, ...raffle.pageConfig?.show } });
+    setGaleria(raffle.gallery ?? []);
     setPremios(
       raffle.prizes.map((p) => ({
         ...nuevoPremio(p.rule, p.amountCop ? String(p.amountCop) : ''),
         descripcion: p.description ?? '',
         custom: p.customRuleText ?? '',
         anticipadoLoteria: p.anticipatedLottery ?? 'Antioqueñita',
+        anticipadoCodigo: p.anticipatedDrawCode ?? '',
         anticipadoHora: p.anticipatedDrawAt ? isoToZoned(p.anticipatedDrawAt, tz).time : '16:00',
+        imageKey: p.imageKey ?? null,
+        imageUrl: p.imageUrl ?? null,
       })),
     );
     setCondicion(raffle.conditionText ?? '');
@@ -165,6 +220,7 @@ export default function Constructor() {
   const previewStyle = { '--acento': actual.color, '--on-acento': actual.on } as CSSProperties;
   const drawIso = zonedToIso(fecha, hora, tz);
 
+  const grande = cifras >= 5;
   const body = useMemo(() => {
     const prizes = premios.map((p) => ({
       ...(soloDigitos(p.monto) > 0 && { amountCop: soloDigitos(p.monto) }),
@@ -173,38 +229,60 @@ export default function Constructor() {
       ...(p.rule === 'custom' && { customRuleText: p.custom.trim() }),
       ...(ANTICIPADO.includes(p.rule) && {
         anticipatedLottery: p.anticipadoLoteria.trim(),
+        anticipatedDrawCode: p.anticipadoCodigo || null,
         anticipatedDrawAt: zonedToIso(fecha, p.anticipadoHora, tz) ?? undefined,
       }),
+      imageKey: p.imageKey,
     }));
+    const faq = pagina.faq.filter((f) => f.q.trim() && f.a.trim());
     return {
       title: titulo.trim(),
       lottery: loteria,
+      lotteryDrawCode: loteriaCodigo || null,
       drawAt: drawIso,
       salesCloseAt: cierre ? zonedToIso(fecha, cierre, tz) : null,
       pricePerNumber: precioNum,
       digits: cifras,
       minPerOrder: Math.max(1, soloDigitos(minimo)),
+      numberSelection: seleccion,
+      extraDigitsSource: grande ? (cifras === 6 ? 'series' : fuenteExtra) : null,
+      extraDigitsPosition: posicionExtra,
       accentColor: acento,
       conditionText: condicion.trim() || null,
       authorizationNumber: autorizacion.trim() || null,
+      pageConfig: { ...pagina, description: pagina.description?.trim() || null, faq },
+      galleryKeys: galeria.map((g) => g.key),
       paymentAccountIds: cuentas,
       ...(slug && { slug }),
       prizes,
     };
-  }, [titulo, loteria, drawIso, cierre, fecha, tz, precioNum, cifras, minimo, acento, condicion, autorizacion, cuentas, slug, premios]);
+  }, [titulo, loteria, loteriaCodigo, drawIso, cierre, fecha, tz, precioNum, cifras, grande, minimo, seleccion, fuenteExtra, posicionExtra, acento, condicion, autorizacion, pagina, galeria, cuentas, slug, premios]);
 
   const guardar = useOrgMutation<void, Raffle>(async (_v, req) => {
     if (!raffle) return req<Raffle>('/v1/raffles', { body });
     const { prizes, ...rest } = body;
     const patch: Record<string, unknown> = { ...rest };
     if (bloqueado) {
-      delete patch.digits;
-      delete patch.pricePerNumber;
-      delete patch.slug;
+      // Lo que define cómo se reparten y arman los números no cambia después de vender.
+      for (const f of ['digits', 'pricePerNumber', 'slug', 'numberSelection', 'extraDigitsSource', 'extraDigitsPosition', 'minPerOrder']) delete patch[f];
     }
     await req<Raffle>(`/v1/raffles/${raffle.id}`, { method: 'PATCH', body: patch });
     return req<Raffle>(`/v1/raffles/${raffle.id}/prizes`, { method: 'PUT', body: { prizes } });
   });
+
+  /** Sube una foto de la galería o de un premio (guarda el sorteo primero si es nuevo). */
+  const media = useOrgMutation<{ rid: string; kind: 'gallery' | 'prize'; file: File }, { key: string; url: string }>(async ({ rid, kind, file }, req) => {
+    const up = await req<Upload>(`/v1/raffles/${rid}/media/${kind}`, { body: { contentType: file.type, size: file.size } });
+    await uploadToStorage(up, file);
+    return req<{ key: string; url: string }>(`/v1/raffles/${rid}/media/${kind}/confirm`, { body: { key: up.key } });
+  });
+  const subirMedia = (kind: 'gallery' | 'prize', file: File, onDone: (m: { key: string; url: string }) => void) =>
+    run(async () => {
+      const rid = raffle?.id ?? (await guardar.mutateAsync()).id;
+      onDone(await media.mutateAsync({ rid, kind, file }));
+      if (!raffle) navigate(`/admin/sorteos/${rid}`, { replace: true });
+      setOk(kind === 'gallery' ? 'Foto agregada. Guarda los cambios para publicarla.' : 'Foto del premio lista. Guarda los cambios.');
+    });
 
   const publicar = useOrgMutation<string, Raffle>((rid, req) => req<Raffle>(`/v1/raffles/${rid}/publish`, { method: 'POST' }));
   const accionSorteo = useOrgMutation<{ path: string; body?: unknown; method?: string }, unknown>((v, req) =>
@@ -262,7 +340,7 @@ export default function Constructor() {
   if (id && existing.isLoading) return <Loading />;
   if (id && existing.error) return <ErrorNote error={existing.error} />;
 
-  const ocupado = guardar.isPending || publicar.isPending || portada.isPending;
+  const ocupado = guardar.isPending || publicar.isPending || portada.isPending || media.isPending;
   const enlaceBase = `rifastar.co/${org?.slug ?? ''}/`;
 
   return (
@@ -366,9 +444,30 @@ export default function Constructor() {
               <div className="grid-auto" style={{ '--min': '180px' } as CSSProperties}>
                 <div>
                   <label className="rs-label" htmlFor="loteria">Juega con</label>
-                  <select id="loteria" className="rs-in" value={loteria} onChange={(e) => setLoteria(e.target.value)}>
-                    {[...new Set([loteria, ...LOTERIAS])].map((l) => <option key={l}>{l}</option>)}
+                  <select
+                    id="loteria"
+                    className="rs-in"
+                    value={loteriaCodigo || `nombre:${loteria}`}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v.startsWith('nombre:')) {
+                        setLoteriaCodigo(PROPIO);
+                        setLoteria(v.slice(7));
+                      } else {
+                        setLoteriaCodigo(v);
+                        setLoteria(loteriasCat.find((d) => d.code === v)?.name ?? v);
+                      }
+                    }}
+                  >
+                    {loteriasCat.length > 0
+                      ? loteriasCat.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)
+                      : LOTERIAS.filter((l) => l !== 'Sorteo propio en vivo').map((l) => <option key={l} value={`nombre:${l}`}>{l}</option>)}
+                    {!loteriaCodigo && !LOTERIAS.includes(loteria) && <option value={`nombre:${loteria}`}>{loteria}</option>}
+                    <option value="nombre:Sorteo propio en vivo">Sorteo propio en vivo</option>
                   </select>
+                  <p className="rs-help">
+                    {loteriaCodigo ? 'Te avisamos el resultado apenas salga (LoteríaYa). Tú lo confirmas e ingresas.' : 'Sin consulta automática: ingresas el resultado a mano.'}
+                  </p>
                 </div>
                 <div>
                   <label className="rs-label" htmlFor="fecha">Fecha del sorteo</label>
@@ -419,14 +518,15 @@ export default function Constructor() {
                   <input id="precio" className="rs-in rs-mono" inputMode="numeric" value={precio} disabled={bloqueado} onChange={(e) => setPrecio(e.target.value)} />
                 </div>
                 <div>
-                  <label className="rs-label" htmlFor="minimo">Mínimo por compra</label>
-                  <input id="minimo" className="rs-in rs-mono" inputMode="numeric" value={minimo} onChange={(e) => setMinimo(e.target.value)} />
+                  <label className="rs-label" htmlFor="minimo">Compra mínima por participante</label>
+                  <input id="minimo" className="rs-in rs-mono" inputMode="numeric" value={minimo} disabled={bloqueado} onChange={(e) => setMinimo(e.target.value)} />
+                  <p className="rs-help">Cuenta lo que ya compró en este sorteo: si el mínimo es 3 y ya tiene 3, puede sumar de a uno.</p>
                 </div>
               </div>
               <fieldset className="bare-fieldset" disabled={bloqueado}>
                 <legend className="rs-label">Cantidad de números</legend>
                 <div className="chips">
-                  {([2, 3, 4] as const).map((c) => (
+                  {CIFRAS.map((c) => (
                     <button
                       key={c}
                       type="button"
@@ -434,14 +534,53 @@ export default function Constructor() {
                       aria-pressed={cifras === c}
                       onClick={() => {
                         setCifras(c);
+                        if (c >= 5) setSeleccion('random');
+                        if (c === 6) setFuenteExtra('series');
                         setPremios((cur) => cur.map((p) => (REGLAS[c].some((r) => r.rule === p.rule) ? p : { ...p, rule: REGLAS[c][0].rule })));
                       }}
                     >
                       {c} cifras
-                      <span style={{ opacity: 0.7, fontWeight: 500 }}>{'0'.repeat(c)}–{'9'.repeat(c)}</span>
+                      <span style={{ opacity: 0.7, fontWeight: 500 }}>{(10 ** c).toLocaleString('es-CO')}</span>
                     </button>
                   ))}
                 </div>
+              </fieldset>
+              {grande && (
+                <fieldset className="bare-fieldset rs-panel cifras-extra" disabled={bloqueado}>
+                  <legend className="rs-label">Cómo se arma el número ganador</legend>
+                  <p className="rs-help" style={{ marginTop: 0 }}>
+                    La lotería da 4 cifras. {cifras === 5 ? 'La quinta' : 'Las otras dos'} sale{cifras === 6 ? 'n' : ''} de:
+                  </p>
+                  <div className="chips">
+                    <button type="button" className="rs-chip" aria-pressed={fuenteExtra === 'series'} onClick={() => setFuenteExtra('series')}>
+                      {cifras === 5 ? 'Última cifra de la serie' : 'Dos últimas cifras de la serie'}
+                    </button>
+                    {cifras === 5 && (
+                      <button type="button" className="rs-chip" aria-pressed={fuenteExtra === 'fifth_digit'} onClick={() => setFuenteExtra('fifth_digit')}>
+                        Quinta cifra del chance
+                      </button>
+                    )}
+                  </div>
+                  <div className="chips">
+                    <button type="button" className="rs-chip" aria-pressed={posicionExtra === 'end'} onClick={() => setPosicionExtra('end')}>Al final</button>
+                    <button type="button" className="rs-chip" aria-pressed={posicionExtra === 'start'} onClick={() => setPosicionExtra('start')}>Al inicio</button>
+                  </div>
+                  <p className="note note--fondo rs-mono">{ejemploNumero(cifras, cifras === 6 ? 'series' : fuenteExtra, posicionExtra)}</p>
+                </fieldset>
+              )}
+              <fieldset className="bare-fieldset" disabled={bloqueado}>
+                <legend className="rs-label">¿Quién elige los números?</legend>
+                <div className="chips">
+                  <button type="button" className="rs-chip" aria-pressed={seleccion === 'choose'} onClick={() => setSeleccion('choose')}>El participante los elige</button>
+                  <button type="button" className="rs-chip" aria-pressed={seleccion === 'random'} onClick={() => setSeleccion('random')}>Siempre al azar</button>
+                </div>
+                <p className="rs-help">
+                  {seleccion === 'random'
+                    ? 'El participante solo dice cuántos números quiere y el sistema se los asigna al azar.'
+                    : grande
+                      ? 'Con tantos números, el participante busca el suyo o navega por bloques de 1.000.'
+                      : 'El participante toca los números libres en la grilla.'}
+                </p>
               </fieldset>
               <div className="note note--ok" style={{ padding: '14px 16px' }}>
                 <Icon name="trend" strokeWidth={2.2} />
@@ -496,10 +635,51 @@ export default function Constructor() {
                     )}
                     {ANTICIPADO.includes(p.rule) && (
                       <>
-                        <input className="rs-in" placeholder="Lotería del anticipado" value={p.anticipadoLoteria} onChange={(e) => editarPremio(p.key, 'anticipadoLoteria', e.target.value)} aria-label="Lotería del anticipado" />
+                        {chancesCat.length > 0 ? (
+                          <select
+                            className="rs-in"
+                            aria-label="Lotería del anticipado"
+                            value={p.anticipadoCodigo || 'otra'}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const d = chancesCat.find((x) => x.code === v);
+                              setPremios((cur) =>
+                                cur.map((x) => (x.key === p.key ? { ...x, anticipadoCodigo: d ? d.code : '', anticipadoLoteria: d ? d.name : x.anticipadoLoteria } : x)),
+                              );
+                            }}
+                          >
+                            {chancesCat.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+                            <option value="otra">Otra (escribir)</option>
+                          </select>
+                        ) : null}
+                        {(!p.anticipadoCodigo || chancesCat.length === 0) && (
+                          <input className="rs-in" placeholder="Lotería del anticipado" value={p.anticipadoLoteria} onChange={(e) => editarPremio(p.key, 'anticipadoLoteria', e.target.value)} aria-label="Nombre de la lotería del anticipado" />
+                        )}
                         <input className="rs-in" type="time" value={p.anticipadoHora} onChange={(e) => editarPremio(p.key, 'anticipadoHora', e.target.value)} aria-label="Hora del anticipado" />
                       </>
                     )}
+                    <div className="premio-foto">
+                      {p.imageUrl && <img src={p.imageUrl} alt="" className="premio-foto__img" />}
+                      <label className="rs-btn rs-btn--secundario rs-btn--sm">
+                        <Icon name="image" size={16} />
+                        {p.imageUrl ? 'Cambiar foto' : 'Foto del premio'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) subirMedia('prize', f, (m) => setPremios((cur) => cur.map((x) => (x.key === p.key ? { ...x, imageKey: m.key, imageUrl: m.url } : x))));
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      {p.imageUrl && (
+                        <button type="button" className="rs-btn rs-btn--fantasma rs-btn--sm" onClick={() => setPremios((cur) => cur.map((x) => (x.key === p.key ? { ...x, imageKey: null, imageUrl: null } : x)))}>
+                          Quitar
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -576,7 +756,7 @@ export default function Constructor() {
             <section id="diseno" className="rs-panel panel-pad">
               <div>
                 <h2 className="h2">5. Diseño del enlace</h2>
-                <p className="rs-help">Personaliza el color del sorteo. El logo y la letra de Rifa Star se mantienen.</p>
+                <p className="rs-help">Personaliza la página del sorteo. El logo y la letra de Rifa Star se mantienen.</p>
               </div>
               <fieldset className="bare-fieldset">
                 <legend className="rs-label">Color del sorteo</legend>
@@ -587,8 +767,120 @@ export default function Constructor() {
                       {a.nombre}
                     </button>
                   ))}
+                  <label className="rs-chip" aria-pressed={actual.id === 'libre'}>
+                    <input type="color" className="color-libre" value={actual.color} onChange={(e) => setAcento(e.target.value)} aria-label="Color propio" />
+                    Color propio
+                  </label>
+                </div>
+                <p className="rs-help">El texto encima del color (negro o blanco) se elige solo para que siempre se lea.</p>
+              </fieldset>
+              <fieldset className="bare-fieldset">
+                <legend className="rs-label">Tema de la página</legend>
+                <div className="chips">
+                  <button type="button" className="rs-chip" aria-pressed={pagina.theme === 'dark'} onClick={() => setPagina((p) => ({ ...p, theme: 'dark' }))}>Oscuro (recomendado)</button>
+                  <button type="button" className="rs-chip" aria-pressed={pagina.theme === 'light'} onClick={() => setPagina((p) => ({ ...p, theme: 'light' }))}>Claro</button>
                 </div>
               </fieldset>
+              <div>
+                <label className="rs-label" htmlFor="descripcion">Descripción del sorteo (opcional)</label>
+                <textarea
+                  id="descripcion"
+                  className="rs-in"
+                  maxLength={2000}
+                  rows={5}
+                  value={pagina.description ?? ''}
+                  placeholder={'**Una moto 0 km** para estrenar.\n\n- Papeles al día\n- Entrega en Medellín'}
+                  onChange={(e) => setPagina((p) => ({ ...p, description: e.target.value }))}
+                />
+                <p className="rs-help">**negrita**, *cursiva*, listas con «- » y enlaces [texto](https://…). {(pagina.description ?? '').length} / 2000</p>
+              </div>
+              <div className="stack" style={{ gap: 10 }}>
+                <div className="seccion-top">
+                  <span className="rs-label" style={{ margin: 0 }}>Preguntas frecuentes</span>
+                  <button
+                    type="button"
+                    className="rs-btn rs-btn--secundario rs-btn--sm"
+                    disabled={pagina.faq.length >= 12}
+                    onClick={() => setPagina((p) => ({ ...p, faq: [...p.faq, { q: '', a: '' }] }))}
+                  >
+                    <Icon name="plus" size={16} strokeWidth={2.4} />
+                    Agregar pregunta
+                  </button>
+                </div>
+                {pagina.faq.map((f, i) => (
+                  <div key={i} className="faq-fila">
+                    <input
+                      className="rs-in"
+                      placeholder="¿Cuándo entregan el premio?"
+                      maxLength={150}
+                      value={f.q}
+                      aria-label={`Pregunta ${i + 1}`}
+                      onChange={(e) => setPagina((p) => ({ ...p, faq: p.faq.map((x, k) => (k === i ? { ...x, q: e.target.value } : x)) }))}
+                    />
+                    <textarea
+                      className="rs-in"
+                      rows={2}
+                      maxLength={600}
+                      placeholder="Respuesta"
+                      value={f.a}
+                      aria-label={`Respuesta ${i + 1}`}
+                      onChange={(e) => setPagina((p) => ({ ...p, faq: p.faq.map((x, k) => (k === i ? { ...x, a: e.target.value } : x)) }))}
+                    />
+                    <button type="button" className="rs-btn rs-btn--fantasma rs-btn--sm" aria-label={`Quitar pregunta ${i + 1}`} onClick={() => setPagina((p) => ({ ...p, faq: p.faq.filter((_, k) => k !== i) }))}>
+                      <Icon name="trash" size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <fieldset className="bare-fieldset">
+                <legend className="rs-label">Qué se muestra en la página</legend>
+                <div className="secciones-visibles">
+                  {(
+                    [
+                      ['countdown', 'Cuenta regresiva'],
+                      ['progress', 'Barra de avance'],
+                      ['remaining', '«Quedan X números»'],
+                      ['organizer', 'Organizador verificado'],
+                      ['ranking', 'Enlace al ranking'],
+                      ['social', 'Redes del organizador'],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <label key={k} className="check-row">
+                      <input type="checkbox" checked={pagina.show[k]} onChange={(e) => setPagina((p) => ({ ...p, show: { ...p.show, [k]: e.target.checked } }))} />
+                      <span className="check-row__t" style={{ font: '600 14px/20px var(--font-sans)' }}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="stack" style={{ gap: 10 }}>
+                <span className="rs-label" style={{ margin: 0 }}>Galería del premio (hasta 6 fotos)</span>
+                <div className="galeria-admin">
+                  {galeria.map((g, i) => (
+                    <div key={g.key} className="galeria-admin__item">
+                      <img src={g.url} alt={`Foto ${i + 1}`} />
+                      <button type="button" className="rs-btn rs-btn--secundario rs-btn--sm" aria-label={`Quitar foto ${i + 1}`} onClick={() => setGaleria((cur) => cur.filter((x) => x.key !== g.key))}>
+                        <Icon name="trash" size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {galeria.length < 6 && (
+                    <label className="rs-foto galeria-admin__add">
+                      <Icon name="plus" size={22} />
+                      Agregar foto
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) subirMedia('gallery', f, (m) => setGaleria((cur) => [...cur, m]));
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
               <div>
                 <label className="rs-label" htmlFor="enlace">Enlace del sorteo</label>
                 <div className="prefixed">
@@ -615,9 +907,9 @@ export default function Constructor() {
               {raffle && raffle.status !== 'draft' && <Link to={`/${org?.slug}/${raffle.slug}`} className="strong-link">Abrir en móvil</Link>}
             </div>
             <div className="rs-oscuro preview__phone" style={previewStyle}>
-              <div className="preview__screen">
+              <div className={`preview__screen ${pagina.theme === 'light' ? 'rs-claro' : ''}`}>
                 <div className="preview__bar">
-                  <Logo variante="blanco" height={22} />
+                  <Logo variante={pagina.theme === 'light' ? 'negro' : 'blanco'} height={22} />
                   <span className="rs-badge rs-badge--abierto">Abierto</span>
                 </div>
                 {raffle?.coverUrl ? (
@@ -635,14 +927,21 @@ export default function Constructor() {
                   <div className="rs-progreso">
                     <span style={{ width: `${raffle ? Math.round((raffle.progress.paid / raffle.totalNumbers) * 100) : 0}%` }} />
                   </div>
-                  <div className="preview__nums">
-                    {Array.from({ length: 15 }, (_, i) => (
-                      <span key={i} className="rs-num preview__num" aria-pressed={i === 3 || i === 10}>
-                        {pad(i, cifras)}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="rs-btn rs-btn--primario preview__cta">Elegir mis números</span>
+                  {seleccion === 'random' ? (
+                    <div className="preview__azar">
+                      <Icon name="dice" size={18} />
+                      <span>Números al azar{Math.max(1, soloDigitos(minimo)) > 1 ? ` · mínimo ${Math.max(1, soloDigitos(minimo))}` : ''}</span>
+                    </div>
+                  ) : (
+                    <div className="preview__nums" style={{ gridTemplateColumns: `repeat(${cifras >= 5 ? 3 : 5}, minmax(0, 1fr))` }}>
+                      {Array.from({ length: cifras >= 5 ? 9 : 15 }, (_, i) => (
+                        <span key={i} className="rs-num preview__num" aria-pressed={i === 3 || i === 7}>
+                          {pad(cifras >= 5 ? 40580 + i : i, cifras)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <span className="rs-btn rs-btn--primario preview__cta">{seleccion === 'random' ? 'Comprar números' : 'Elegir mis números'}</span>
                 </div>
               </div>
             </div>

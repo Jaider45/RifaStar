@@ -81,14 +81,14 @@ export function errorMessage(err: unknown): string {
   return 'Algo salió mal. Intenta de nuevo.';
 }
 
-/** Sube un archivo con la URL firmada (POST multipart directo al almacenamiento). */
-export async function uploadToStorage(upload: { url: string; fields: Record<string, string> }, file: File): Promise<void> {
-  const form = new FormData();
-  for (const [k, v] of Object.entries(upload.fields)) form.append(k, v);
-  form.append('file', file);
+/**
+ * Sube un archivo con la URL firmada (PUT directo al almacenamiento). El tipo y el tamaño
+ * van dentro de la firma: el archivo tiene que ser exactamente el que se declaró al pedirla.
+ */
+export async function uploadToStorage(upload: { url: string; method: 'PUT'; headers: Record<string, string> }, file: File): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(upload.url, { method: 'POST', body: form });
+    res = await fetch(upload.url, { method: upload.method, headers: upload.headers, body: file });
   } catch {
     throw new ApiError(0, 'UPLOAD_FAILED', 'No pudimos subir el archivo. Revisa tu conexión e intenta de nuevo.');
   }

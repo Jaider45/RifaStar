@@ -4,10 +4,12 @@ import { ruleAppliesTo } from '../results/winner-rules';
 const ALL_RULES = Object.values(PrizeRule);
 
 /** Reglas permitidas según las cifras del sorteo (P3), derivadas del módulo de ganadores. */
-export const RULES_BY_DIGITS: Record<2 | 3 | 4, readonly PrizeRule[]> = {
+export const RULES_BY_DIGITS: Record<2 | 3 | 4 | 5 | 6, readonly PrizeRule[]> = {
   2: ALL_RULES.filter((r) => ruleAppliesTo(r, 2)),
   3: ALL_RULES.filter((r) => ruleAppliesTo(r, 3)),
   4: ALL_RULES.filter((r) => ruleAppliesTo(r, 4)),
+  5: ALL_RULES.filter((r) => ruleAppliesTo(r, 5)),
+  6: ALL_RULES.filter((r) => ruleAppliesTo(r, 6)),
 };
 
 export const ANTICIPATED_RULES: ReadonlySet<PrizeRule> = new Set(['anticipated_last_two', 'anticipated_full_number']);

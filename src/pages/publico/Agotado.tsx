@@ -13,7 +13,19 @@ import './publico.css';
 
 interface PublicResults {
   raffle: { slug: string; title: string; lottery: string; drawAt: string; digits: number };
-  result: { mainResult: string; anticipatedResult: string | null; publishedAt: string; evidenceUrls: string[] };
+  result: {
+    mainResult: string;
+    anticipatedResult: string | null;
+    seriesResult: string | null;
+    fifthDigit: string | null;
+    /** «4058 · serie 127 → 40587» (5 y 6 cifras) o «4058». */
+    label: string;
+    /** 5 y 6 cifras: el número completo que gana (40587). */
+    fullNumber: string | null;
+    attribution: { name: string; url: string } | null;
+    publishedAt: string;
+    evidenceUrls: string[];
+  };
   prizes: {
     position: number;
     amountCop: number | null;
@@ -122,9 +134,25 @@ export default function Agotado() {
                   <span key={i} className="rs-mono" aria-hidden="true">{d}</span>
                 ))}
               </div>
+              {(res.result.seriesResult || res.result.fifthDigit) && (
+                <span className="muted" style={{ font: '600 13px/18px var(--font-sans)' }}>
+                  {res.result.seriesResult ? <>Serie <b className="rs-mono" style={{ color: 'var(--tinta)' }}>{res.result.seriesResult}</b></> : null}
+                  {res.result.fifthDigit ? <>Quinta cifra <b className="rs-mono" style={{ color: 'var(--tinta)' }}>{res.result.fifthDigit}</b></> : null}
+                  {res.result.fullNumber && (
+                    <>
+                      {' · '}Número ganador: <b className="rs-mono" style={{ color: 'var(--tinta)' }}>{res.result.fullNumber}</b>
+                    </>
+                  )}
+                </span>
+              )}
               {res.result.anticipatedResult && (
                 <span className="muted" style={{ font: '600 13px/18px var(--font-sans)' }}>
                   Anticipado: <b className="rs-mono" style={{ color: 'var(--tinta)' }}>{res.result.anticipatedResult}</b>
+                </span>
+              )}
+              {res.result.attribution && (
+                <span className="muted" style={{ font: '500 12px/16px var(--font-sans)' }}>
+                  Resultados informativos de <a href={res.result.attribution.url} target="_blank" rel="noreferrer noopener">{res.result.attribution.name}</a>. El oficial es el que publica cada lotería.
                 </span>
               )}
               {res.result.evidenceUrls.map((u, i) => (

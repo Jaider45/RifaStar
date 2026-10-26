@@ -44,3 +44,19 @@
 .preview__num--vendido { background: transparent; border-style: dashed; color: var(--tinta-suave); text-decoration: line-through; }
 .preview__cta { background: var(--acento); color: var(--on-acento); cursor: default; }
 @media (max-width: 900px) { .preview { position: static; } }
+
+/* 5 y 6 cifras, fotos, preguntas y secciones visibles */
+.cifras-extra { padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--fondo); }
+.premio-foto { display: flex; align-items: center; gap: 8px; }
+.premio-foto__img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.color-libre { width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer; }
+.faq-fila { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 40px; gap: 8px; align-items: start; }
+.faq-fila textarea { min-height: 44px; }
+@media (max-width: 640px) { .faq-fila { grid-template-columns: 1fr 40px; } .faq-fila textarea { grid-column: 1; } }
+.secciones-visibles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.galeria-admin { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.galeria-admin__item { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
+.galeria-admin__item img { width: 100%; height: 100%; object-fit: cover; }
+.galeria-admin__item button { position: absolute; top: 6px; right: 6px; background: var(--superficie); }
+.galeria-admin__add { aspect-ratio: 1; border-radius: 12px; border: 1px dashed var(--borde-control); cursor: pointer; }
+.preview__azar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 14px; background: var(--superficie-alta); font: 700 14px/20px var(--font-sans); }

@@ -26,9 +26,37 @@ interface WinnerRow {
   deliveredAt: string | null;
 }
 
+interface LotteryReportRow {
+  drawName: string;
+  winningNumber: string | null;
+  winningSeries: string | null;
+  fifthDigit: string | null;
+  status: 'confirmed' | 'preliminary' | 'disputed';
+  receivedAt: string;
+}
+
 interface WinnersView {
-  raffle: { id: string; title: string; status: string; digits: number; resultsPublishedAt: string | null };
-  result: { mainResult: string; anticipatedResult: string | null; revision: number; evidenceUrls: string[] } | null;
+  raffle: {
+    id: string;
+    title: string;
+    status: string;
+    digits: number;
+    extraDigitsSource: 'series' | 'fifth_digit' | null;
+    extraDigitsPosition: 'start' | 'end';
+    resultsPublishedAt: string | null;
+  };
+  result: {
+    mainResult: string;
+    anticipatedResult: string | null;
+    seriesResult: string | null;
+    fifthDigit: string | null;
+    label: string;
+    revision: number;
+    managersNotified: boolean;
+    evidenceUrls: string[];
+  } | null;
+  /** Lo que reportó LoteríaYa: solo informativo, el equipo confirma e ingresa el resultado. */
+  lotteryReport: { source: string; main: LotteryReportRow | null; anticipated: LotteryReportRow | null } | null;
   prizes: {
     prizeId: string;
     position: number;
@@ -49,6 +77,12 @@ const nombreCorto = (nombre: string) => {
 
 const premioTexto = (p: { amountCop: number | null; description: string | null }) => (p.amountCop ? cop(p.amountCop) : (p.description ?? 'Premio'));
 
+const ESTADO_LOTERIA: Record<LotteryReportRow['status'], { label: string; tono: 'abierto' | 'cerrado' | 'urgente' }> = {
+  confirmed: { label: 'Verificado', tono: 'abierto' },
+  preliminary: { label: 'Sin verificar', tono: 'cerrado' },
+  disputed: { label: 'En discusión', tono: 'urgente' },
+};
+
 export default function Ganador() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,6 +100,9 @@ export default function Ganador() {
   const view = useOrgQuery<WinnersView>(raffleId ? `/v1/raffles/${raffleId}/winners` : null);
   const [digitos, setDigitos] = useState(['', '', '', '']);
   const [anticipado, setAnticipado] = useState('');
+  const [serie, setSerie] = useState('');
+  const [quinta, setQuinta] = useState('');
+  const [codigo2fa, setCodigo2fa] = useState('');
   const [ok, setOk] = useState<string | null>(null);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -73,14 +110,23 @@ export default function Ganador() {
     const r = view.data?.result;
     setDigitos(r ? r.mainResult.split('') : ['', '', '', '']);
     setAnticipado(r?.anticipatedResult ?? '');
+    setSerie(r?.seriesResult ?? '');
+    setQuinta(r?.fifthDigit ?? '');
+    setCodigo2fa('');
     setOk(null);
   }, [view.data?.result, raffleId]);
 
   const guardar = useOrgMutation<void>((_v, req) =>
     req(`/v1/raffles/${raffleId}/result`, {
       method: 'PUT',
-      body: { mainResult: digitos.join(''), ...(anticipado.length === 4 && { anticipatedResult: anticipado }) },
-    }).then(() => undefined),
+      body: {
+        mainResult: digitos.join(''),
+        ...(anticipado.length === 4 && { anticipatedResult: anticipado }),
+        ...(serie.length === 3 && { seriesResult: serie }),
+        ...(quinta.length === 1 && { fifthDigit: quinta }),
+        totpCode: codigo2fa,
+      },
+    }).then(() => setCodigo2fa('')),
   );
   const entregar = useOrgMutation<string>((wid, req) => req(`/v1/winners/${wid}/deliver`, { body: {} }).then(() => undefined));
   const publicar = useOrgMutation<void>((_v, req) => req(`/v1/raffles/${raffleId}/results/publish`, { method: 'POST' }).then(() => undefined));
@@ -110,7 +156,19 @@ export default function Ganador() {
   const v = view.data;
   const r = raffle.data;
   const tz = org?.timezone;
-  const completo = digitos.every((d) => d !== '');
+  const extra = v && v.raffle.digits >= 5 ? (v.raffle.extraDigitsSource === 'fifth_digit' ? 'quinta' : 'serie') : null;
+  const completo = digitos.every((d) => d !== '') && (extra !== 'serie' || serie.length === 3) && (extra !== 'quinta' || quinta.length === 1);
+  const reporte = v?.lotteryReport;
+  /** Copia al formulario lo que reportó LoteríaYa (el equipo revisa y confirma con su código). */
+  const usarReporte = () => {
+    const m = reporte?.main;
+    const main4 = m?.winningNumber?.slice(-4).padStart(4, '0');
+    if (main4 && /^\d{4}$/.test(main4)) setDigitos(main4.split(''));
+    if (m?.winningSeries) setSerie(m.winningSeries.slice(-3).padStart(3, '0'));
+    if (m?.fifthDigit) setQuinta(m.fifthDigit);
+    const a = reporte?.anticipated?.winningNumber;
+    if (a) setAnticipado(a.slice(-4).padStart(4, '0'));
+  };
   const tieneAnticipado = Boolean(r?.prizes.some((p) => p.rule.startsWith('anticipated')));
   const premioAnticipado = r?.prizes.find((p) => p.rule.startsWith('anticipated'));
   const publicado = Boolean(v?.raffle.resultsPublishedAt);
@@ -139,6 +197,34 @@ export default function Ganador() {
 
       <div className="split">
         <div className="split__main">
+          {reporte && (reporte.main || reporte.anticipated) && !publicado && (
+            <section className="rs-panel reporte" aria-label="Resultado reportado por LoteríaYa">
+              <div className="reporte__head">
+                <span className="eyebrow">Reportado por {reporte.source}</span>
+                {reporte.main && <Badge tono={ESTADO_LOTERIA[reporte.main.status].tono}>{ESTADO_LOTERIA[reporte.main.status].label}</Badge>}
+              </div>
+              {[reporte.main, reporte.anticipated]
+                .filter((x): x is LotteryReportRow => Boolean(x))
+                .map((x) => (
+                  <div key={x.drawName} className="reporte__fila">
+                    <span>{x.drawName}</span>
+                    <b className="rs-mono">
+                      {x.winningNumber ?? '—'}
+                      {x.winningSeries ? ` · serie ${x.winningSeries}` : ''}
+                      {x.fifthDigit ? ` · quinta ${x.fifthDigit}` : ''}
+                    </b>
+                  </div>
+                ))}
+              <p className="rs-help" style={{ margin: 0 }}>
+                Es informativo. Compáralo con el resultado oficial de la lotería antes de calcular los ganadores.
+              </p>
+              {editable && (
+                <button type="button" className="rs-btn rs-btn--secundario rs-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={usarReporte}>
+                  Usar estos números en el formulario
+                </button>
+              )}
+            </section>
+          )}
           <section className="rs-panel resultado">
             <fieldset className="bare-fieldset" disabled={!editable}>
               <legend className="rs-label">Resultado {r?.lottery}</legend>
@@ -172,15 +258,73 @@ export default function Ganador() {
                 />
               </div>
             )}
+            {extra === 'serie' && (
+              <div>
+                <label className="rs-label" htmlFor="serie">Serie de la lotería</label>
+                <input
+                  id="serie"
+                  className="rs-in rs-mono resultado__anticipado"
+                  style={{ width: 120 }}
+                  value={serie}
+                  inputMode="numeric"
+                  maxLength={3}
+                  disabled={!editable}
+                  placeholder="000"
+                  onChange={(e) => setSerie(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            )}
+            {extra === 'quinta' && (
+              <div>
+                <label className="rs-label" htmlFor="quinta">Quinta cifra del chance</label>
+                <input
+                  id="quinta"
+                  className="rs-in rs-mono resultado__digito"
+                  value={quinta}
+                  inputMode="numeric"
+                  maxLength={1}
+                  disabled={!editable}
+                  onChange={(e) => setQuinta(e.target.value.replace(/\D/g, '').slice(-1))}
+                />
+              </div>
+            )}
             {editable && (
-              <button
-                type="button"
-                className="rs-btn rs-btn--primario"
-                disabled={!completo || guardar.isPending}
-                onClick={() => guardar.mutateAsync().then(() => setOk('Resultado guardado y ganadores calculados.')).catch(() => undefined)}
-              >
-                {v?.result ? 'Corregir resultado' : 'Calcular ganadores'}
-              </button>
+              <div className="resultado__confirmar">
+                <div>
+                  <label className="rs-label" htmlFor="codigo2fa">Código de tu app de autenticación</label>
+                  <input
+                    id="codigo2fa"
+                    className="rs-in rs-mono"
+                    style={{ width: 150, textAlign: 'center', letterSpacing: '.2em' }}
+                    value={codigo2fa}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="000000"
+                    onChange={(e) => setCodigo2fa(e.target.value.replace(/\D/g, ''))}
+                  />
+                  <p className="rs-help">El resultado define quién gana: se confirma en el momento.</p>
+                </div>
+                <button
+                  type="button"
+                  className="rs-btn rs-btn--primario"
+                  disabled={!completo || codigo2fa.length !== 6 || guardar.isPending}
+                  onClick={() =>
+                    guardar
+                      .mutateAsync()
+                      .then(() => setOk('Resultado guardado y ganadores calculados. Avisamos al equipo por WhatsApp y correo.'))
+                      .catch(() => undefined)
+                  }
+                >
+                  {v?.result ? 'Corregir resultado' : 'Calcular ganadores'}
+                </button>
+              </div>
+            )}
+            {v?.result && (
+              <p className="rs-help" style={{ margin: 0 }}>
+                Resultado guardado: <b className="rs-mono">{v.result.label}</b>
+                {v.result.managersNotified ? ' · el equipo ya recibió los ganadores' : ''}
+              </p>
             )}
             {v?.result && (
               <div className="resultado__prueba">
@@ -285,7 +429,7 @@ export default function Ganador() {
                 </span>
               </div>
               <span className="pieza__pie">
-                {r?.lottery} · {r ? formatDay(r.drawAt, tz) : ''} · Resultado {v?.result?.mainResult ?? '––––'}
+                {r?.lottery} · {r ? formatDay(r.drawAt, tz) : ''} · Resultado {v?.result?.label ?? '––––'}
               </span>
             </div>
           </div>

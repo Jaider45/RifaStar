@@ -26,7 +26,13 @@ export const Errors = {
   twoFactorRequired: e('AUTH_2FA_REQUIRED', 401, 'Ingresa el código de verificación de tu app de autenticación.'),
   twoFactorInvalid: e('AUTH_2FA_INVALID', 401, 'El código de verificación no es válido o ya venció.'),
   sessionExpired: e('AUTH_SESSION_EXPIRED', 401, 'Tu sesión venció. Vuelve a iniciar sesión.'),
+  twoFactorSetupRequired: e(
+    'AUTH_2FA_SETUP_REQUIRED',
+    403,
+    'Para aprobar pagos, anunciar ganadores o manejar el equipo debes activar la verificación en dos pasos en Ajustes › Seguridad.',
+  ),
   forbidden: e('FORBIDDEN_PERMISSION', 403, 'No tienes permiso para hacer esto.'),
+  selfApproval: e('SELF_APPROVAL', 403, 'No puedes aprobar ni rechazar un pago de una venta que hiciste tú. Pídele a otra persona del equipo.'),
   notMember: e('FORBIDDEN_PERMISSION', 403, 'No perteneces a esta organización.'),
   supportReadOnly: e('SUPPORT_READ_ONLY', 403, 'Estás en modo soporte: solo puedes consultar, no hacer cambios.'),
   orgSuspended: e('ORG_SUSPENDED', 403, 'La cuenta está suspendida. Actualiza el pago para volver a hacer cambios.'),

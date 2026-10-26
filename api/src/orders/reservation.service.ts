@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Raffle } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { pepperedHash, safeEqual, sha256 } from '../common/crypto';
 import { AppError, Errors } from '../common/errors';
 import { formatNumber, formatNumberList } from '../common/format';
@@ -31,10 +31,14 @@ export function isOnSale(raffle: Pick<Raffle, 'status' | 'salesCloseAt'>, now = 
   return raffle.status === 'active' && (!raffle.salesCloseAt || raffle.salesCloseAt > now);
 }
 
+/** Hasta este tamaño se calcula la lista exacta de libres para el azar; arriba se muestrea. */
+const EXACT_RANDOM_MAX = 10_000;
+
 /**
- * Apartado atómico de números (regla 1). Un único UPDATE … WHERE status =
- * 'available' dentro de la transacción; si no se actualizan exactamente N
- * filas, todo se revierte y el error dice qué números se tomaron.
+ * Apartado atómico de números (regla 1). raffle_numbers guarda solo los números tomados:
+ * apartar es un INSERT … ON CONFLICT DO NOTHING sobre la clave (raffle_id, number) dentro de
+ * la transacción. Si no entran exactamente los N pedidos, todo se revierte y el error dice
+ * qué números se tomaron. Dos personas nunca pueden quedarse con el mismo número.
  */
 @Injectable()
 export class ReservationService {
@@ -66,19 +70,42 @@ export class ReservationService {
       }
       if (!isOnSale(raffle)) throw raffleNotOnSale(raffle);
 
-      const count = input.numbers?.length ?? input.random!;
-      if (count < raffle.minPerOrder) {
+      if (raffle.numberSelection === 'random' && input.numbers) {
         throw Errors.validation(
-          { field: 'numbers', min: raffle.minPerOrder },
-          `La compra mínima en este sorteo es de ${raffle.minPerOrder} números.`,
+          { field: 'numbers', numberSelection: 'random' },
+          'En este sorteo los números se asignan al azar. Elige cuántos quieres.',
         );
       }
+      const count = input.numbers?.length ?? input.random!;
       const outOfRange = (input.numbers ?? []).filter((n) => n >= raffle.totalNumbers);
       if (outOfRange.length > 0) {
         throw Errors.validation({ field: 'numbers', outOfRange }, `Este sorteo va del ${formatNumber(0, raffle.digits)} al ${formatNumber(raffle.totalNumbers - 1, raffle.digits)}.`);
       }
 
       const payments = await this.settings.read(tx, 'payments');
+      // Antibots: nadie retiene más de N números sin pagar a la vez (por teléfono).
+      const holdLimit = payments.data.maxHeldPerPhone;
+      const participant = await tx.participant.findUnique({ where: { organizationId_phone: { organizationId, phone } }, select: { id: true } });
+      const mine = participant ? await this.participantNumbers(tx, raffle.id, participant.id) : { held: 0, total: 0 };
+      // Compra mínima por participante: lo que ya tiene en este sorteo más lo nuevo.
+      if (mine.total + count < raffle.minPerOrder) {
+        const faltan = raffle.minPerOrder - mine.total;
+        throw Errors.validation(
+          { field: 'numbers', min: raffle.minPerOrder, alreadyHas: mine.total },
+          mine.total === 0
+            ? `La compra mínima en este sorteo es de ${raffle.minPerOrder} números por participante.`
+            : `La compra mínima es de ${raffle.minPerOrder} números por participante: te faltan ${faltan}.`,
+        );
+      }
+      if (holdLimit && mine.held + count > holdLimit) {
+        throw new AppError(
+          'HOLD_LIMIT',
+          429,
+          `Tienes números apartados sin pagar. Paga o espera a que se liberen antes de apartar más (máximo ${holdLimit} sin pagar).`,
+          { limit: holdLimit, held: mine.held },
+        );
+      }
+
       const reservedUntil = new Date(Date.now() + payments.data.reservationMinutes * 60_000);
       const seller = input.sellerCode && (await this.plans.hasFeature(organizationId, 'sellers'))
         ? await tx.member.findFirst({ where: { sellerCode: input.sellerCode.toUpperCase(), status: 'active' }, select: { id: true, sellerCode: true } })
@@ -116,23 +143,34 @@ export class ReservationService {
     });
   }
 
+  /** Números del participante en el sorteo: retenidos sin pagar y total (retenidos + pagos). */
+  private async participantNumbers(tx: Tx, raffleId: string, participantId: string) {
+    const rows = await tx.$queryRaw<{ held: bigint; total: bigint }[]>`
+      SELECT count(*) FILTER (WHERE rn.status IN ('reserved', 'pending_verification')) AS held,
+             count(*) AS total
+        FROM raffle_numbers rn JOIN orders o ON o.id = rn.order_id
+       WHERE rn.raffle_id = ${raffleId}::uuid AND o.participant_id = ${participantId}::uuid`;
+    return { held: Number(rows[0]?.held ?? 0), total: Number(rows[0]?.total ?? 0) };
+  }
+
+  /** Inserta las filas de los números que sigan libres. Devuelve los que quedaron apartados. */
+  private async insertFree(tx: Tx, raffle: Raffle, orderId: string, numbers: number[], until: Date): Promise<number[]> {
+    if (numbers.length === 0) return [];
+    // En orden de número: dos compras cruzadas esperan en el mismo orden (sin interbloqueos).
+    const rows = await tx.$queryRaw<{ number: number }[]>`
+      INSERT INTO raffle_numbers (raffle_id, number, organization_id, status, order_id, reserved_until, updated_at)
+      SELECT ${raffle.id}::uuid, n, ${raffle.organizationId}::uuid, 'reserved', ${orderId}::uuid, ${until}, now()
+        FROM unnest(${[...numbers].sort((a, b) => a - b)}::int[]) AS n
+       ORDER BY n
+      ON CONFLICT (raffle_id, number) DO NOTHING
+      RETURNING number`;
+    return rows.map((r) => r.number);
+  }
+
   private async claimExact(tx: Tx, raffle: Raffle, orderId: string, wanted: number[], until: Date): Promise<number[]> {
-    // Bloquea en orden de número (evita interbloqueos entre compras cruzadas) y
-    // actualiza solo las filas que siguen disponibles.
-    const claimed = await tx.$queryRaw<{ number: number }[]>`
-      WITH free AS MATERIALIZED (
-        SELECT number FROM raffle_numbers
-         WHERE raffle_id = ${raffle.id}::uuid AND number = ANY(${wanted}::int[]) AND status = 'available'
-         ORDER BY number
-         FOR UPDATE
-      )
-      UPDATE raffle_numbers rn
-         SET status = 'reserved', order_id = ${orderId}::uuid, reserved_until = ${until}, updated_at = now()
-        FROM free
-       WHERE rn.raffle_id = ${raffle.id}::uuid AND rn.number = free.number AND rn.status = 'available'
-      RETURNING rn.number`;
+    const claimed = await this.insertFree(tx, raffle, orderId, wanted, until);
     if (claimed.length !== wanted.length) {
-      const got = new Set(claimed.map((r) => r.number));
+      const got = new Set(claimed);
       const taken = wanted.filter((n) => !got.has(n)).sort((a, b) => a - b);
       const list = formatNumberList(taken, raffle.digits);
       throw new AppError(
@@ -144,34 +182,54 @@ export class ReservationService {
         { taken, takenFormatted: taken.map((n) => formatNumber(n, raffle.digits)) },
       );
     }
-    return claimed.map((r) => r.number).sort((a, b) => a - b);
+    return claimed.sort((a, b) => a - b);
   }
 
+  /**
+   * Al azar entre los libres. Hasta 10.000 números se calcula la lista exacta de libres;
+   * en sorteos de 5 y 6 cifras (o casi vacíos) se muestrea y se reintenta con los que
+   * otra compra tomó al mismo tiempo. Si quedan pocos libres, se calcula la lista exacta.
+   */
   private async claimRandom(tx: Tx, raffle: Raffle, orderId: string, count: number, until: Date): Promise<number[]> {
-    // MATERIALIZED: la selección al azar se evalúa una sola vez (si no, el
-    // planificador puede re-ejecutarla por cada fila y apartar de más).
-    const claimed = await tx.$queryRaw<{ number: number }[]>`
-      WITH free AS MATERIALIZED (
-        SELECT number FROM raffle_numbers
-         WHERE raffle_id = ${raffle.id}::uuid AND status = 'available'
-         ORDER BY random()
-         LIMIT ${count}
-         FOR UPDATE SKIP LOCKED
-      )
-      UPDATE raffle_numbers rn
-         SET status = 'reserved', order_id = ${orderId}::uuid, reserved_until = ${until}, updated_at = now()
-        FROM free
-       WHERE rn.raffle_id = ${raffle.id}::uuid AND rn.number = free.number AND rn.status = 'available'
-      RETURNING rn.number`;
-    if (claimed.length !== count) {
-      throw new AppError(
+    const notEnough = (left: number) =>
+      new AppError(
         'NOT_ENOUGH_NUMBERS',
         409,
-        claimed.length === 0 ? 'Ya no quedan números disponibles.' : `Solo quedan ${claimed.length} números disponibles.`,
+        left <= 0 ? 'Ya no quedan números disponibles.' : `Solo quedan ${left} números disponibles.`,
         { requested: count },
       );
+    const fresh = await tx.raffle.findUniqueOrThrow({ where: { id: raffle.id }, select: { paidCount: true, heldCount: true } });
+    const free = raffle.totalNumbers - fresh.paidCount - fresh.heldCount;
+    if (free < count) throw notEnough(free);
+
+    const claimed: number[] = [];
+    const sparse = raffle.totalNumbers > EXACT_RANDOM_MAX && free > raffle.totalNumbers / 5;
+    if (sparse) {
+      for (let round = 0; round < 8 && claimed.length < count; round++) {
+        const want = count - claimed.length;
+        const candidates = new Set<number>();
+        while (candidates.size < Math.min(want * 2, want + 50)) candidates.add(randomInt(raffle.totalNumbers));
+        for (const n of claimed) candidates.delete(n);
+        const got = await this.insertFree(tx, raffle, orderId, [...candidates].slice(0, want), until);
+        claimed.push(...got);
+      }
     }
-    return claimed.map((r) => r.number).sort((a, b) => a - b);
+    if (claimed.length < count) {
+      // Lista exacta de libres (sorteos chicos, o grandes casi llenos).
+      const taken = await tx.$queryRaw<{ number: number }[]>`SELECT number FROM raffle_numbers WHERE raffle_id = ${raffle.id}::uuid`;
+      const used = new Set(taken.map((r) => r.number));
+      const pool: number[] = [];
+      for (let n = 0; n < raffle.totalNumbers; n++) if (!used.has(n)) pool.push(n);
+      shuffleInPlace(pool);
+      let i = 0;
+      while (claimed.length < count && i < pool.length) {
+        const batch = pool.slice(i, i + (count - claimed.length));
+        i += batch.length;
+        claimed.push(...(await this.insertFree(tx, raffle, orderId, batch, until)));
+      }
+    }
+    if (claimed.length !== count) throw notEnough(claimed.length);
+    return claimed.sort((a, b) => a - b);
   }
 
   private async response(tx: Tx, raffle: Raffle, orderId: string) {
@@ -194,6 +252,13 @@ export class ReservationService {
       raffle: { slug: raffle.slug, title: raffle.title, digits: raffle.digits },
       paymentAccounts: accounts.map(presentPaymentAccount),
     };
+  }
+}
+
+function shuffleInPlace(a: number[]): void {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
   }
 }
 

@@ -45,7 +45,9 @@ export class MessagesService {
     opts: EnqueueOptions,
   ): Promise<string | null> {
     const def = TEMPLATES[template];
-    if (template !== 'otp_code' && !(await this.plans.hasFeature(organizationId, 'whatsappAutomation'))) return null;
+    // Los códigos de verificación salen en todos los planes; el resto requiere la función.
+    const always = template === 'otp_code' || template === 'phone_verify_code';
+    if (!always && !(await this.plans.hasFeature(organizationId, 'whatsappAutomation'))) return null;
 
     const org = await this.db.system.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { timezone: true } });
     const inserted = await this.db.tenantTx(organizationId, async (tx) => {

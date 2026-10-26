@@ -5,7 +5,7 @@ import { Errors } from '../common/errors';
 import { requestContext } from '../common/request-context';
 import { DatabaseService } from '../database/database.service';
 import type { OrgContext } from '../tenancy/org-context';
-import { ORG_PERMISSION_KEYS, type OrgPermission } from './catalog';
+import { needsTwoFactor, ORG_PERMISSION_KEYS, type OrgPermission, TWO_FACTOR_PERMISSIONS } from './catalog';
 import { ALLOW_WHEN_SUSPENDED, PERMISSION_RESOLVER, REQUIRED_PERMISSIONS } from './metadata';
 import { PermissionsService } from './permissions.service';
 
@@ -108,6 +108,11 @@ export class OrgGuard implements CanActivate {
     if (dynamic) required.push(...(Array.isArray(dynamic) ? dynamic : [dynamic]));
     const missing = required.filter((p) => !ctx.permissions.has(p));
     if (missing.length > 0) throw Errors.forbidden({ missing });
+    // Las acciones sensibles exigen 2FA activo (soporte nunca llega aquí: es solo lectura).
+    if (auth.kind === 'user' && needsTwoFactor(required)) {
+      const user = await this.db.system.user.findUnique({ where: { id: auth.userId }, select: { totpEnabledAt: true } });
+      if (!user?.totpEnabledAt) throw Errors.twoFactorSetupRequired({ permissions: required.filter((p) => TWO_FACTOR_PERMISSIONS.has(p)) });
+    }
 
     req.org = ctx;
     requestContext.patch({ organizationId: org.id });

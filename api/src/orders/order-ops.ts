@@ -31,15 +31,14 @@ export async function expireReservedOrders(
 }
 
 /**
- * Devuelve a `available` los números apartados o en verificación de las
- * órdenes dadas y ajusta `held_count`. Devuelve cuántos liberó por sorteo.
+ * Libera los números apartados o en verificación de las órdenes dadas (borra sus filas:
+ * un número sin fila está libre) y ajusta `held_count`. Devuelve cuántos liberó por sorteo.
  */
 export async function releaseHeldNumbers(tx: Tx, orderIds: string[]): Promise<Map<string, number>> {
   const byRaffle = new Map<string, number>();
   if (orderIds.length === 0) return byRaffle;
   const released = await tx.$queryRaw<{ raffle_id: string }[]>`
-    UPDATE raffle_numbers
-       SET status = 'available', order_id = NULL, reserved_until = NULL, updated_at = now()
+    DELETE FROM raffle_numbers
      WHERE order_id = ANY(${orderIds}::uuid[]) AND status IN ('reserved', 'pending_verification')
     RETURNING raffle_id`;
   for (const r of released) byRaffle.set(r.raffle_id, (byRaffle.get(r.raffle_id) ?? 0) + 1);
@@ -52,9 +51,7 @@ export async function releaseHeldNumbers(tx: Tx, orderIds: string[]): Promise<Ma
 /** Libera números pagados (al liberar una orden aprobada) y ajusta `paid_count`. */
 export async function releasePaidNumbers(tx: Tx, orderId: string, raffleId: string): Promise<number> {
   const n = await tx.$executeRaw`
-    UPDATE raffle_numbers
-       SET status = 'available', order_id = NULL, paid_at = NULL, updated_at = now()
-     WHERE order_id = ${orderId}::uuid AND status = 'paid'`;
+    DELETE FROM raffle_numbers WHERE order_id = ${orderId}::uuid AND status = 'paid'`;
   if (n > 0) {
     await tx.$executeRaw`UPDATE raffles SET paid_count = paid_count - ${n}, updated_at = now() WHERE id = ${raffleId}::uuid`;
   }

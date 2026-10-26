@@ -61,7 +61,8 @@ describe('Sorteos', () => {
     const pub = await ctx.http.post(`/v1/raffles/${draft.body.id}/publish`).set(as(fresh.ownerToken, fresh.org.id)).expect(200);
     expect(pub.body.status).toBe('active');
     expect(pub.body.paymentAccountIds).toHaveLength(1);
-    expect(await ctx.db.system.raffleNumber.count({ where: { raffleId: draft.body.id } })).toBe(1000);
+    // Publicar no crea filas: raffle_numbers guarda solo los números tomados.
+    expect(await ctx.db.system.raffleNumber.count({ where: { raffleId: draft.body.id } })).toBe(0);
 
     // El job de cierre de ventas quedó programado a la hora límite.
     const jobId = SchedulerService.closeSalesJobId(draft.body.id, new Date(pub.body.salesCloseAt));
@@ -101,7 +102,7 @@ describe('Sorteos', () => {
     const order = await ctx.db.system.order.findUniqueOrThrow({ where: { id: reserved.body.orderId } });
     expect(order.status).toBe('expired');
     const nums = await ctx.db.system.raffleNumber.findMany({ where: { raffleId: live.id, number: { in: [1, 2, 3] } }, orderBy: { number: 'asc' } });
-    expect(nums.map((n) => n.status)).toEqual(['available', 'available', 'paid']);
+    expect(nums.map((n) => [n.number, n.status])).toEqual([[3, 'paid']]);
   });
 
   it('el admin no puede eliminar (raffles.delete); el vendedor no puede editar', async () => {

@@ -17,7 +17,7 @@ x-api-env: &api-env
   ENCRYPTION_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
   HASH_PEPPER: dev-pepper
   COOKIE_SECURE: "false"
-  S3_ENDPOINT: http://minio:9000
+  S3_ENDPOINT: http://s3:9000
   S3_PUBLIC_ENDPOINT: http://localhost:9000
   S3_BUCKET: rifastar
   S3_ACCESS_KEY: rifastar
@@ -53,21 +53,32 @@ services:
       interval: 3s
       retries: 20
 
-  minio:
-    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: rifastar
-      MINIO_ROOT_PASSWORD: rifastar-secret
-    ports: ["9000:9000", "9001:9001"]
-    volumes: [minio:/data]
+  # Almacenamiento compatible con S3 para desarrollo (SeaweedFS; MinIO ya no publica imágenes).
+  # En producción se usa Cloudflare R2 u otro S3: la API habla el mismo protocolo.
+  s3:
+    image: chrislusf/seaweedfs:3.80
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo '{"identities":[{"name":"rifastar","credentials":[{"accessKey":"rifastar","secretKey":"rifastar-secret"}],"actions":["Admin","Read","Write","List","Tagging"]}]}' > /etc/s3.json
+        exec weed server -dir=/data -ip=s3 -ip.bind=0.0.0.0 -volume.max=0 -master.volumeSizeLimitMB=512 \
+          -s3 -s3.port=9000 -s3.config=/etc/s3.json
+    ports: ["9000:9000"]
+    volumes: [s3data:/data]
 
-  minio-setup:
-    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
-    depends_on: [minio]
-    entrypoint: >
-      /bin/sh -c "until mc alias set local http://minio:9000 rifastar rifastar-secret; do sleep 1; done;
-      mc mb --ignore-existing local/rifastar; mc anonymous set none local/rifastar"
+  # Crea el bucket privado «rifastar» (idempotente).
+  s3-setup:
+    image: chrislusf/seaweedfs:3.80
+    depends_on: [s3]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 60); do
+          echo "s3.bucket.create -name rifastar" | weed shell -master=s3:9333 >/dev/null 2>&1
+          if echo "s3.bucket.list" | weed shell -master=s3:9333 2>/dev/null | grep -q rifastar; then echo "bucket rifastar listo"; exit 0; fi
+          sleep 2
+        done
+        echo "no se pudo crear el bucket"; exit 1
 
   mailpit:
     image: axllent/mailpit:v1.20
@@ -99,4 +110,4 @@ services:
 
 volumes:
   pgdata:
-  minio:
+  s3data:

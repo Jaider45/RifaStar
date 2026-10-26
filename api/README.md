@@ -4,7 +4,8 @@ Backend de **Rifa Star**, un SaaS multi-organización para crear y vender sorteo
 por enlace público y WhatsApp.
 
 - **Stack:** Node 20 + TypeScript (strict), NestJS 11, PostgreSQL 16 + Prisma 6
-  (con RLS), Redis + BullMQ, S3/MinIO, WhatsApp Cloud API y Stripe.
+  (con RLS), Redis + BullMQ, almacenamiento S3 (SeaweedFS en desarrollo, Cloudflare R2 en producción),
+  WhatsApp Cloud API, LoteríaYa (resultados informativos) y Stripe.
 - **Procesos:** `api` (HTTP) y `worker` (colas y tareas programadas). Comparten el mismo código.
 - **Idioma:** el dominio y los mensajes van en español; el código, en inglés.
 - **Diseño aprobado:** [`docs/backend/PROPUESTA.md`](../docs/backend/PROPUESTA.md), con las decisiones P1–P12.
@@ -24,14 +25,18 @@ docker compose up -d --build
 | Documentación (Swagger) | http://localhost:3000/v1/docs |
 | OpenAPI (JSON) | http://localhost:3000/v1/openapi.json |
 | Mailpit (correos de invitación y contraseña) | http://localhost:8025 |
-| Consola de MinIO (comprobantes, portadas) | http://localhost:9001 (`rifastar` / `rifastar-secret`) |
+| Almacenamiento S3 (SeaweedFS: comprobantes, portadas, fotos) | http://localhost:9000 (`rifastar` / `rifastar-secret`) |
 
 Qué hace Compose:
 
 1. `postgres` crea los roles de base de datos (`docker/postgres/01-roles.sql`).
 2. `migrate` aplica las migraciones y siembra los datos de ejemplo (§9).
 3. `api` y `worker` arrancan.
-4. `minio-setup` crea el bucket privado.
+4. `s3-setup` crea el bucket privado en SeaweedFS (MinIO dejó de publicar imágenes de Docker).
+
+Los archivos se suben directo del navegador con una **URL firmada PUT**: el tipo y el tamaño
+exactos van dentro de la firma, y la API valida después el tipo real del archivo. PUT funciona igual
+en SeaweedFS, Amazon S3 y Cloudflare R2 (R2 no acepta el formulario POST firmado).
 
 Para volver a empezar de cero:
 
@@ -50,8 +55,10 @@ docker compose down -v && docker compose up -d --build
 | · vendedor (código `LUIS`) | `luis@correo.com` | `clave-segura-123` |
 | Moto Ya (en prueba) · owner | `felipe@correo.com` | `clave-segura-123` |
 
-**2FA de la plataforma:** el secreto TOTP de desarrollo es `JBSWY3DPEHPK3PXP`.
-Agrégalo a Google Authenticator o a cualquier app TOTP para generar los códigos.
+**2FA:** el secreto TOTP de desarrollo es `JBSWY3DPEHPK3PXP` para la plataforma **y para los gestores**
+(owner, admin y verificadora; el vendedor no lo necesita). Agrégalo a Google Authenticator o a cualquier
+app TOTP para generar los códigos. Quien aprueba pagos, anuncia ganadores o maneja el equipo debe tener
+el 2FA activo, y el resultado de un sorteo se confirma con un código en el momento.
 
 **Contenido del seed:**
 
@@ -60,7 +67,9 @@ Agrégalo a Google Authenticator o a cualquier app TOTP para generar los código
   - 62 números pagados y 7 pagos por verificar;
   - dos sorteos anteriores ya jugados, con ganadores;
   - llave Bre-B 3168110777 a nombre de José Rodríguez;
-  - ranking del mes con 20 participantes.
+  - ranking del mes con 20 participantes;
+  - «Gran rifa de Navidad»: **5 cifras** (100.000 números) con la Lotería de Medellín + última cifra de la
+    serie, números **siempre al azar**, compra mínima de 2 por participante y página personalizada.
 - **Moto Ya** (en prueba): incluye un participante con el mismo teléfono que Laura en Michellys, para probar el aislamiento entre organizaciones.
 
 ---
@@ -84,8 +93,8 @@ npm run dev             # API con recarga
 npm run dev:worker      # worker (BullMQ)
 ```
 
-Para correr sin MinIO ni SMTP, usa `STORAGE_DRIVER=fake`, `MAIL_DRIVER=fake`,
-`MESSAGING_DRIVER=fake` y `BILLING_DRIVER=fake` en `.env`.
+Para correr sin almacenamiento S3 ni SMTP, usa `STORAGE_DRIVER=fake`, `MAIL_DRIVER=fake`,
+`MESSAGING_DRIVER=fake`, `LOTTERY_DRIVER=fake` y `BILLING_DRIVER=fake` en `.env`.
 
 `npm run db:reset` borra la base, migra y vuelve a sembrar. Úsalo solo en desarrollo.
 
@@ -100,7 +109,7 @@ npm run typecheck
 ```
 
 Los tests usan la base `rifastar_test` (se recrea al empezar) y Redis en la
-base 15. Hay 152 tests en 19 archivos. Los obligatorios del documento están en:
+base 15. Hay 188 tests en 24 archivos. Los obligatorios del documento están en:
 
 | Requisito | Archivo |
 |---|---|
@@ -111,6 +120,10 @@ base 15. Hay 152 tests en 19 archivos. Los obligatorios del documento están en:
 | Aislamiento entre organizaciones (API, filtro de Prisma y RLS) | `test/isolation.spec.ts` |
 | Permisos por rol (matriz de la plantilla) | `test/permissions.spec.ts` |
 | Límites del plan (402) | `test/plan-limits.spec.ts` |
+| 5 y 6 cifras, selección al azar, compra mínima por participante | `test/big-raffles.spec.ts` |
+| Resultados de LoteríaYa y avisos a los gestores (WhatsApp y correo, recordatorio) | `test/lottery-alerts.spec.ts` |
+| Seguridad: 2FA obligatorio, equipos nuevos, sesiones, separación de funciones, antifraude, antibots | `test/security.spec.ts` |
+| Personalización de la página pública y vista previa al compartir | `test/public-page.spec.ts` |
 
 ---
 
@@ -137,10 +150,10 @@ La API valida todas al arrancar (`src/config/env.ts`) y se detiene si falta algu
 | `REFRESH_TOKEN_TTL_DAYS` | `30` | Vida del refresh token (cookie httpOnly) |
 | `COOKIE_SECURE` | `true` | `false` solo en desarrollo sin HTTPS |
 | `STORAGE_DRIVER` | `s3` | `s3` · `fake` |
-| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` | — | Endpoint interno y el que ve el navegador (MinIO en Docker) |
+| `S3_ENDPOINT` / `S3_PUBLIC_ENDPOINT` | — | Endpoint interno y el que ve el navegador (en Docker difieren) |
 | `S3_REGION` / `S3_BUCKET` | `us-east-1` / `rifastar` | |
 | `S3_ACCESS_KEY` / `S3_SECRET_KEY` | — | |
-| `S3_FORCE_PATH_STYLE` | `false` | `true` con MinIO |
+| `S3_FORCE_PATH_STYLE` | `false` | `true` con SeaweedFS |
 | `MAIL_DRIVER` | `smtp` | `smtp` · `fake` |
 | `SMTP_URL` / `MAIL_FROM` | `smtp://localhost:1025` | Correo de invitaciones y contraseña |
 | `MESSAGING_DRIVER` | `fake` | `meta` (WhatsApp Cloud API) · `fake` |
@@ -149,6 +162,11 @@ La API valida todas al arrancar (`src/config/env.ts`) y se detiene si falta algu
 | `WHATSAPP_VERIFY_TOKEN` | — | Alta del webhook (GET) |
 | `WHATSAPP_API_VERSION` | `v21.0` | |
 | `MESSAGES_RETRY_BASE_MS` | `30000` | Base del reintento exponencial de `send-whatsapp` |
+| `LOTTERY_DRIVER` | `fake` | `loteriaya` · `fake` (catálogo fijo, sin consultas) |
+| `LOTERIAYA_BASE_URL` | `https://www.loteriaya.com.co/v1` | |
+| `LOTERIAYA_API_KEY` | — | Clave de LoteríaYa (cabecera `X-Api-Key`) |
+| `LOTERIAYA_WEBHOOK_SECRET` | — | Secreto HMAC-SHA256 de los webhooks de LoteríaYa |
+| `LOTERIAYA_SIGNATURE_HEADER` | `x-loteriaya-signature` | Cabecera de la firma: confírmala con la especificación que envía LoteríaYa |
 | `BILLING_DRIVER` | `fake` | `stripe` · `fake` (sin llamadas salientes, misma verificación de firma) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | |
 

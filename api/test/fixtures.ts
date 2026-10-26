@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { FakeStorageProvider, StorageProvider } from '../src/storage/storage.provider';
 import { as, type TestContext, type TestOrg, uid } from './helpers';
 
@@ -16,12 +17,14 @@ export const BOYACA_PRIZES = [
 export const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
 
 export interface RaffleOpts {
-  digits?: 2 | 3 | 4;
+  digits?: 2 | 3 | 4 | 5 | 6;
   price?: number;
   minPerOrder?: number;
   salesCloseAt?: string | null;
   publish?: boolean;
   prizes?: object[];
+  /** Campos adicionales del cuerpo (numberSelection, extraDigitsSource, lotteryDrawCode…). */
+  extra?: Record<string, unknown>;
 }
 
 export async function ensurePaymentAccount(ctx: TestContext, t: TestOrg): Promise<string> {
@@ -49,6 +52,8 @@ export async function createRaffle(ctx: TestContext, t: TestOrg, opts: RaffleOpt
       digits,
       minPerOrder: opts.minPerOrder ?? 1,
       prizes: opts.prizes ?? (digits === 2 ? BOYACA_PRIZES : [{ amountCop: 1_000_000, rule: digits === 3 ? 'last_three' : 'full_number' }]),
+      ...(digits >= 5 && { extraDigitsSource: 'series' }),
+      ...opts.extra,
     })
     .expect(201);
   if (opts.publish === false) return res.body;
@@ -77,15 +82,24 @@ export async function reserve(
 }
 
 /** Aparta, sube un comprobante PNG y lo confirma. Devuelve la orden. */
-export async function reserveAndSubmit(ctx: TestContext, t: TestOrg, raffleSlug: string, numbers: number[], phone?: string) {
-  const order = await reserve(ctx, t, raffleSlug, { numbers, phone });
+export async function reserveAndSubmit(
+  ctx: TestContext,
+  t: TestOrg,
+  raffleSlug: string,
+  numbers: number[],
+  phone?: string,
+  opts: { file?: Buffer; sellerCode?: string } = {},
+) {
+  const order = await reserve(ctx, t, raffleSlug, { numbers, phone, sellerCode: opts.sellerCode });
   if (order.status !== 201) throw new Error(`reserve ${order.status}: ${JSON.stringify(order.body)}`);
+  // Cada comprobante es un archivo distinto (salvo que el test pase uno): así no salen como repetidos.
+  const file = opts.file ?? Buffer.concat([PNG, randomBytes(16)]);
   const up = await ctx.http
     .post(`/v1/public/orders/${order.body.orderId}/receipt`)
     .set('X-Order-Token', order.body.accessToken)
-    .send({ contentType: 'image/png', size: PNG.length })
+    .send({ contentType: 'image/png', size: file.length })
     .expect(201);
-  storage(ctx).put(up.body.key, PNG);
+  storage(ctx).put(up.body.key, file);
   await ctx.http
     .post(`/v1/public/orders/${order.body.orderId}/receipt/confirm`)
     .set('X-Order-Token', order.body.accessToken)

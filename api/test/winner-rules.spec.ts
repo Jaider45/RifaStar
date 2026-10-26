@@ -1,5 +1,5 @@
 import { displayName } from '../src/common/privacy';
-import { ruleAppliesTo, winningNumber, WinnerRuleError } from '../src/results/winner-rules';
+import { composeFullNumber, ruleAppliesTo, winningNumber, WinnerRuleError } from '../src/results/winner-rules';
 
 describe('Reglas de ganadores (módulo puro)', () => {
   describe('2 cifras con resultado 2435 (ejemplo aprobado en P3)', () => {
@@ -36,6 +36,30 @@ describe('Reglas de ganadores (módulo puro)', () => {
   describe('4 cifras (resultado 4087)', () => {
     it('full_number = ABCD', () => expect(winningNumber('full_number', 4, '4087')).toBe(4087));
     it('anticipated_full_number = anticipado completo', () => expect(winningNumber('anticipated_full_number', 4, '4087', '0012')).toBe(12));
+  });
+
+  describe('5 y 6 cifras (resultado 4058, serie 127)', () => {
+    const extra = (source: 'series' | 'fifth_digit', position: 'start' | 'end', result: { series?: string; fifthDigit?: string }) => ({
+      config: { source, position },
+      result,
+    });
+    it('5 cifras con la última de la serie al final → 40587', () =>
+      expect(winningNumber('full_number', 5, '4058', null, extra('series', 'end', { series: '127' }))).toBe(40587));
+    it('5 cifras con la serie al inicio → 74058', () =>
+      expect(winningNumber('full_number', 5, '4058', null, extra('series', 'start', { series: '127' }))).toBe(74058));
+    it('5 cifras con la quinta cifra del chance → 40583', () =>
+      expect(winningNumber('full_number', 5, '4058', null, extra('fifth_digit', 'end', { fifthDigit: '3' }))).toBe(40583));
+    it('6 cifras con las dos últimas de la serie → 405827', () =>
+      expect(winningNumber('full_number', 6, '4058', null, extra('series', 'end', { series: '127' }))).toBe(405827));
+    it('6 cifras al inicio conserva los ceros → 074058 = 74058', () =>
+      expect(winningNumber('full_number', 6, '4058', null, extra('series', 'start', { series: '907' }))).toBe(74058));
+    it('falta el dato o la combinación no existe', () => {
+      expect(() => winningNumber('full_number', 5, '4058', null, extra('series', 'end', {}))).toThrow('Falta la serie de la lotería (3 dígitos).');
+      expect(() => winningNumber('full_number', 6, '4058', null, extra('fifth_digit', 'end', { fifthDigit: '3' }))).toThrow(WinnerRuleError);
+      expect(() => composeFullNumber(5, '4058', { source: null, position: 'end' }, {})).toThrow(WinnerRuleError);
+      expect(ruleAppliesTo('last_two', 5)).toBe(false);
+      expect(ruleAppliesTo('full_number', 6)).toBe(true);
+    });
   });
 
   it('custom no se calcula', () => expect(winningNumber('custom', 2, '4087')).toBeNull());

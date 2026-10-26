@@ -28,3 +28,6 @@
   .setting { flex-wrap: wrap; gap: 12px; }
   .ajustes-selects, .ajustes-selects--col { align-items: stretch; justify-content: flex-start; }
 }
+
+.seguridad-2fa { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; padding: 16px 0 20px; border-bottom: 1px solid var(--linea); }
+.seguridad-2fa img { border-radius: 12px; background: #fff; padding: 6px; }

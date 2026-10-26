@@ -45,12 +45,14 @@ const sameDayAt = (draw: Date, hour: number, minute: number) => {
   return localToUtc(new Date(l.getFullYear(), l.getMonth(), l.getDate(), hour, minute), TZ);
 };
 
-const BOYACA_PRIZES = (anticipatedAt: Date): { amountCop: number; rule: PrizeRule; anticipatedLottery?: string; anticipatedDrawAt?: Date }[] => [
+const BOYACA_PRIZES = (
+  anticipatedAt: Date,
+): { amountCop: number; rule: PrizeRule; anticipatedLottery?: string; anticipatedDrawCode?: string; anticipatedDrawAt?: Date }[] => [
   { amountCop: 200_000, rule: 'last_two' },
   { amountCop: 80_000, rule: 'first_two' },
   { amountCop: 70_000, rule: 'middle_two' },
   { amountCop: 50_000, rule: 'digits_1_and_4' },
-  { amountCop: 30_000, rule: 'anticipated_last_two', anticipatedLottery: 'Antioqueñita', anticipatedDrawAt: anticipatedAt },
+  { amountCop: 30_000, rule: 'anticipated_last_two', anticipatedLottery: 'Antioqueñita', anticipatedDrawCode: 'antioquenita-tarde', anticipatedDrawAt: anticipatedAt },
 ];
 
 /** Los 62 números vendidos del mock del frontend. */
@@ -152,7 +154,9 @@ async function main() {
   ];
   const members: Record<string, string> = {};
   for (const [name, email, roleKey, sellerCode] of team) {
-    const user = await prisma.user.upsert({ where: { email }, update: {}, create: { email, name, passwordHash } });
+    // Los gestores (aprueban pagos o anuncian ganadores) tienen 2FA; el vendedor no lo necesita.
+    const twoFactor = roleKey !== 'seller' ? { totpSecretEnc: encrypt(DEV_TOTP_SECRET), totpEnabledAt: new Date() } : {};
+    const user = await prisma.user.upsert({ where: { email }, update: {}, create: { email, name, passwordHash, ...twoFactor } });
     const m = await prisma.member.create({
       data: { organizationId: org.id, userId: user.id, roleId: roles[roleKey].id, status: 'active', joinedAt: new Date(), sellerCode },
     });
@@ -223,6 +227,7 @@ async function main() {
         slug: opts.slug,
         title: opts.title,
         lottery: 'Lotería de Boyacá',
+        lotteryDrawCode: 'loteria-de-boyaca',
         drawAt: opts.drawAt,
         salesCloseAt: sameDayAt(opts.drawAt, 15, 30),
         pricePerNumber: 6000,
@@ -240,9 +245,6 @@ async function main() {
     const prizes = BOYACA_PRIZES(sameDayAt(opts.drawAt, 16, 0));
     await prisma.prize.createMany({ data: prizes.map((p, i) => ({ ...p, organizationId: org.id, raffleId: raffle.id, position: i + 1 })) });
     await prisma.rafflePaymentAccount.create({ data: { raffleId: raffle.id, paymentAccountId: account.id, organizationId: org.id } });
-    await prisma.raffleNumber.createMany({
-      data: Array.from({ length: 100 }, (_, n) => ({ raffleId: raffle.id, number: n, organizationId: org.id })),
-    });
 
     // Reparte los números pagados con pesos decrecientes (Laura primero, como en el mock).
     const owners = new Map<string, number[]>();
@@ -275,9 +277,8 @@ async function main() {
           createdAt: new Date(approvedAt.getTime() - hours(2)),
         },
       });
-      await prisma.raffleNumber.updateMany({
-        where: { raffleId: raffle.id, number: { in: numbers } },
-        data: { status: 'paid', orderId, paidAt: approvedAt },
+      await prisma.raffleNumber.createMany({
+        data: numbers.map((number) => ({ raffleId: raffle.id, number, organizationId: org.id, status: 'paid' as const, orderId, paidAt: approvedAt })),
       });
       await prisma.ticket.createMany({
         data: numbers.map((n) => ({
@@ -391,9 +392,8 @@ async function main() {
         createdAt: new Date(uploadedAt.getTime() - 3 * 60_000),
       },
     });
-    await prisma.raffleNumber.updateMany({
-      where: { raffleId: current.id, number: { in: numbers } },
-      data: { status: 'pending_verification', orderId },
+    await prisma.raffleNumber.createMany({
+      data: numbers.map((number) => ({ raffleId: current.id, number, organizationId: org.id, status: 'pending_verification' as const, orderId })),
     });
     held += numbers.length;
   }
@@ -420,6 +420,71 @@ async function main() {
     await prisma.notifyMeSubscription.create({ data: { organizationId: org.id, participantId: p.id } });
   }
 
+  // Sorteo de 5 cifras (100.000 números): juega con las 4 cifras de la Lotería de Medellín más
+  // la última cifra de la serie; los números se asignan al azar (mínimo 2 por participante).
+  sequence++;
+  const navidad = await prisma.raffle.create({
+    data: {
+      organizationId: org.id,
+      sequence,
+      slug: 'gran-rifa-de-navidad',
+      title: 'Gran rifa de Navidad · Moto 0 km',
+      lottery: 'Lotería de Medellín',
+      lotteryDrawCode: 'loteria-de-medellin',
+      drawAt: addDays(drawAt, 56),
+      pricePerNumber: 5000,
+      digits: 5,
+      totalNumbers: 100_000,
+      minPerOrder: 2,
+      numberSelection: 'random',
+      extraDigitsSource: 'series',
+      extraDigitsPosition: 'end',
+      accentColor: '#ab1f24',
+      conditionText: 'Juega con las 4 cifras de la Lotería de Medellín más la última cifra de la serie.',
+      pageConfig: {
+        theme: 'dark',
+        description: '**Una moto 0 km** para estrenar en Navidad.\n\n- Papeles al día\n- Entrega en Medellín\n- Sorteo transmitido en vivo',
+        faq: [
+          {
+            q: '¿Cómo se arma el número ganador?',
+            a: 'Son las 4 cifras de la Lotería de Medellín más la última cifra de la serie. Ejemplo: 4058 serie 127 → 40587.',
+          },
+        ],
+        show: { countdown: true, progress: true, remaining: true, organizer: true, ranking: true, social: true },
+      },
+      status: 'active',
+      publishedAt: new Date(),
+      createdById: members.owner,
+    },
+  });
+  await prisma.prize.create({ data: { organizationId: org.id, raffleId: navidad.id, position: 1, description: 'Moto Yamaha NMAX 2027 0 km', rule: 'full_number' } });
+  await prisma.rafflePaymentAccount.create({ data: { raffleId: navidad.id, paymentAccountId: account.id, organizationId: org.id } });
+  const navidadOrder = randomUUID();
+  const navidadNumbers = [12345, 40587, 77001];
+  await prisma.order.create({
+    data: {
+      id: navidadOrder,
+      organizationId: org.id,
+      raffleId: navidad.id,
+      participantId: participants[0].id,
+      numbers: navidadNumbers,
+      unitPrice: 5000,
+      totalCop: 5000 * navidadNumbers.length,
+      status: 'approved',
+      reservedUntil: new Date(now - hours(2)),
+      accessTokenHash: sha256(orderAccessToken(navidadOrder)),
+      verifiedById: members.payment_verifier,
+      verifiedAt: new Date(now - hours(1)),
+    },
+  });
+  await prisma.raffleNumber.createMany({
+    data: navidadNumbers.map((number) => ({ raffleId: navidad.id, number, organizationId: org.id, status: 'paid' as const, orderId: navidadOrder, paidAt: new Date(now - hours(1)) })),
+  });
+  await prisma.ticket.createMany({
+    data: navidadNumbers.map((n) => ({ organizationId: org.id, raffleId: navidad.id, orderId: navidadOrder, participantId: participants[0].id, number: n, code: ticketCode(sequence, n, 5) })),
+  });
+  await prisma.raffle.update({ where: { id: navidad.id }, data: { paidCount: navidadNumbers.length } });
+
   await prisma.organization.update({ where: { id: org.id }, data: { raffleSequence: sequence } });
 
   // --- Moto Ya: segunda organización, en prueba (aislamiento entre tenants) -----
@@ -427,7 +492,7 @@ async function main() {
   const felipe = await prisma.user.upsert({
     where: { email: 'felipe@correo.com' },
     update: {},
-    create: { email: 'felipe@correo.com', name: 'Felipe Arango', passwordHash },
+    create: { email: 'felipe@correo.com', name: 'Felipe Arango', passwordHash, totpSecretEnc: encrypt(DEV_TOTP_SECRET), totpEnabledAt: new Date() },
   });
   const motoya = await prisma.organization.create({
     data: { name: 'Moto Ya', slug: 'motoya', timezone: TZ, status: 'trial', trialEndsAt: addDays(new Date(), 9), raffleSequence: 1 },
@@ -449,6 +514,7 @@ async function main() {
       slug: 'moto-yamaha-nmax-2027',
       title: 'Moto Yamaha NMAX 2027',
       lottery: 'Lotería de Medellín',
+      lotteryDrawCode: 'loteria-de-medellin',
       drawAt: addDays(drawAt, 21),
       pricePerNumber: 10_000,
       digits: 3,
@@ -459,7 +525,6 @@ async function main() {
   });
   await prisma.prize.create({ data: { organizationId: motoya.id, raffleId: moto.id, position: 1, description: 'Moto Yamaha NMAX 2027', rule: 'last_three' } });
   await prisma.rafflePaymentAccount.create({ data: { raffleId: moto.id, paymentAccountId: motoAccount.id, organizationId: motoya.id } });
-  await prisma.raffleNumber.createMany({ data: Array.from({ length: 1000 }, (_, n) => ({ raffleId: moto.id, number: n, organizationId: motoya.id })) });
   // Mismo teléfono que Laura en Michellys: es otro participante (único por organización).
   const lauraMoto = await prisma.participant.create({ data: { organizationId: motoya.id, name: 'Laura M.', phone: '+573004127781' } });
   const motoOrder = randomUUID();
@@ -478,7 +543,7 @@ async function main() {
       verifiedAt: new Date(),
     },
   });
-  await prisma.raffleNumber.update({ where: { raffleId_number: { raffleId: moto.id, number: 715 } }, data: { status: 'paid', orderId: motoOrder, paidAt: new Date() } });
+  await prisma.raffleNumber.create({ data: { raffleId: moto.id, number: 715, organizationId: motoya.id, status: 'paid', orderId: motoOrder, paidAt: new Date() } });
   await prisma.ticket.create({ data: { organizationId: motoya.id, raffleId: moto.id, orderId: motoOrder, participantId: lauraMoto.id, number: 715, code: ticketCode(1, 715, 3) } });
   await prisma.raffle.update({ where: { id: moto.id }, data: { paidCount: 1 } });
 
@@ -501,14 +566,15 @@ Plataforma (2FA obligatorio)
   Secreto TOTP de desarrollo: ${DEV_TOTP_SECRET}  (agrégalo a tu app de autenticación)
 
 Rifas de Michellys (plan Pro) · contraseña de todos: ${PASSWORD}
-  owner     michellys@correo.com
-  admin     jose@correo.com
-  verifica  karen@correo.com
-  vendedor  luis@correo.com (código LUIS)
+  owner     michellys@correo.com   (2FA con el secreto TOTP de desarrollo)
+  admin     jose@correo.com        (2FA)
+  verifica  karen@correo.com       (2FA)
+  vendedor  luis@correo.com (código LUIS, sin 2FA)
   Sorteo:   /v1/public/orgs/michellys/raffles/gana-con-boyaca-sorteo-semanal
+  5 cifras: /v1/public/orgs/michellys/raffles/gran-rifa-de-navidad (al azar, mínimo 2)
   Ranking ${period.label}: ${pointsByParticipant.size} participantes · top: ${top.map((t) => `${t.name} (${t.points})`).join(', ')}
 
-Moto Ya (en prueba): felipe@correo.com / ${PASSWORD}
+Moto Ya (en prueba): felipe@correo.com / ${PASSWORD} (2FA)
 `);
 }
 

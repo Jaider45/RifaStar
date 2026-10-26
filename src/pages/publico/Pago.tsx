@@ -64,7 +64,10 @@ export default function Pago() {
   const { org = '', sorteo = '' } = useParams();
   const location = useLocation();
   const qc = useQueryClient();
-  const elegidos: number[] = (location.state as { numeros?: number[] } | null)?.numeros ?? [];
+  const estado = location.state as { numeros?: number[]; cantidad?: number } | null;
+  const elegidos: number[] = estado?.numeros ?? [];
+  /** Sorteos «siempre al azar»: el participante solo eligió cuántos. */
+  const cantidad = estado?.cantidad ?? 0;
   const raffle = usePublicQuery<PublicRaffle>(`/v1/public/orgs/${org}/raffles/${sorteo}`);
   const [stored, setStored] = useState(() => readOrder(org, sorteo));
   const order = useQuery<PublicOrder>({
@@ -101,7 +104,7 @@ export default function Pago() {
     setError(null);
     try {
       const res = await request<{ orderId: string; accessToken: string }>(`/v1/public/orgs/${org}/raffles/${sorteo}/orders`, {
-        body: { name: nombre.trim(), phone: wa, numbers: elegidos, ...linkCodes(org) },
+        body: { name: nombre.trim(), phone: wa, ...(cantidad > 0 ? { random: cantidad } : { numbers: elegidos }), ...linkCodes(org) },
         headers: { 'Idempotency-Key': idempotencyKey },
       });
       const s = { orderId: res.orderId, accessToken: res.accessToken };
@@ -138,9 +141,9 @@ export default function Pago() {
 
   // --- Sin orden: datos del participante para apartar -------------------------
   if (!stored || !o) {
-    if (elegidos.length === 0) {
+    if (elegidos.length === 0 && cantidad === 0) {
       return (
-        <PubFrame acento={r.accentColor}>
+        <PubFrame acento={r.accentColor} tema={r.page?.theme}>
           <main className="pub-main">
             <p className="muted">Primero elige tus números.</p>
             <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--primario boton-ancho">Elegir números</Link>
@@ -150,7 +153,7 @@ export default function Pago() {
     }
     const tomados = error instanceof ApiError && error.code === 'NUMBERS_TAKEN';
     return (
-      <PubFrame acento={r.accentColor}>
+      <PubFrame acento={r.accentColor} tema={r.page?.theme}>
         <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
         <main className="pub-main">
           <ol aria-label="Pasos de compra" className="pasos-compra">
@@ -163,12 +166,18 @@ export default function Pago() {
               <span style={{ font: '700 15px/20px var(--font-sans)' }}>Tus números</span>
               <Link to={`/${org}/${sorteo}`} className="strong-link">Cambiar</Link>
             </div>
-            <div className="chips">
-              {elegidos.map((n) => <span key={n} className="rs-mono boleto-chip">{pad(n, cifras)}</span>)}
-            </div>
+            {cantidad > 0 ? (
+              <p className="muted" style={{ margin: 0 }}>
+                {cantidad} {cantidad === 1 ? 'número' : 'números'} al azar. Te los mostramos apenas los apartes.
+              </p>
+            ) : (
+              <div className="chips">
+                {elegidos.map((n) => <span key={n} className="rs-mono boleto-chip">{pad(n, cifras)}</span>)}
+              </div>
+            )}
             <div className="resumen-pago__total">
-              <span>{elegidos.length} × {cop(r.pricePerNumber)}</span>
-              <span className="rs-display">{cop(elegidos.length * r.pricePerNumber)}</span>
+              <span>{cantidad || elegidos.length} × {cop(r.pricePerNumber)}</span>
+              <span className="rs-display">{cop((cantidad || elegidos.length) * r.pricePerNumber)}</span>
             </div>
           </section>
           <form className="stack" style={{ gap: 14 }} onSubmit={apartar}>
@@ -202,7 +211,7 @@ export default function Pago() {
     const ok = o.status === 'approved';
     const espera = o.status === 'pending_verification';
     return (
-      <PubFrame acento={r.accentColor}>
+      <PubFrame acento={r.accentColor} tema={r.page?.theme}>
         <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
         <main className="pub-main">
           <section className="rs-card agotado">
@@ -247,7 +256,7 @@ export default function Pago() {
   const cuentas = o.paymentAccounts;
   const m = cuentas[medio] ?? cuentas[0];
   return (
-    <PubFrame acento={r.accentColor}>
+    <PubFrame acento={r.accentColor} tema={r.page?.theme}>
       <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
       <main className="pub-main">
         <ol aria-label="Pasos de compra" className="pasos-compra">

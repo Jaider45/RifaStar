@@ -1,6 +1,8 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Member, Organization, User } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
+import { authenticator } from 'otplib';
+import { encrypt } from '../src/common/crypto';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
 import { createApp } from '../src/app.factory';
@@ -39,10 +41,22 @@ export async function closeTestApp(ctx: TestContext): Promise<void> {
 
 export const uid = () => randomBytes(4).toString('hex');
 export const TEST_PASSWORD = 'clave-segura-123';
+/** Secreto TOTP de los usuarios de prueba: los gestores deben tener 2FA para aprobar pagos y anunciar ganadores. */
+export const TEST_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+/** Código vigente para TEST_TOTP_SECRET. */
+export const totp = () => authenticator.generate(TEST_TOTP_SECRET);
 
-export async function createUser(ctx: TestContext, name = 'Persona Prueba'): Promise<User> {
+export async function createUser(ctx: TestContext, name = 'Persona Prueba', opts: { twoFactor?: boolean } = {}): Promise<User> {
   const passwordHash = await ctx.app.get(PasswordService).hash(TEST_PASSWORD);
-  return ctx.db.system.user.create({ data: { email: `u-${uid()}@prueba.co`, name, passwordHash } });
+  const twoFactor = opts.twoFactor ?? true;
+  return ctx.db.system.user.create({
+    data: {
+      email: `u-${uid()}@prueba.co`,
+      name,
+      passwordHash,
+      ...(twoFactor && { totpSecretEnc: encrypt(TEST_TOTP_SECRET), totpEnabledAt: new Date() }),
+    },
+  });
 }
 
 export interface TestOrg {

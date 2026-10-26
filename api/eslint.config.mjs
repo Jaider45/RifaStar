@@ -29,6 +29,8 @@ export default tseslint.config(
       'src/permissions/**',
       'src/health.controller.ts',
       'src/plans/**',
+      // Resultados de loterías: tabla global (sin organización) y búsqueda de sorteos de todas las orgs.
+      'src/lottery/**',
     ],
     rules: {
       'no-restricted-syntax': [

@@ -24,8 +24,8 @@ const EXT: Record<DetectedType, string> = {
 };
 
 /**
- * Flujo de subida en dos pasos: URL firmada para subir directo al
- * almacenamiento y confirmación que valida tamaño y tipo real del archivo.
+ * Flujo de subida en dos pasos: URL firmada (PUT, con tipo y tamaño exactos dentro de la
+ * firma) para subir directo al almacenamiento, y confirmación que valida tamaño y tipo real.
  */
 @Injectable()
 export class UploadsService {
@@ -35,7 +35,7 @@ export class UploadsService {
     if (!policy.allowed.has(contentType as DetectedType)) throw this.invalidType(policy);
     if (size > policy.maxBytes) throw this.tooLarge(policy);
     const key = `${policy.prefix}${randomUUID()}.${EXT[contentType as DetectedType]}`;
-    return this.storage.presignUpload({ key, contentType, maxBytes: policy.maxBytes, expiresSeconds: 300 });
+    return this.storage.presignUpload({ key, contentType, size, maxBytes: policy.maxBytes, expiresSeconds: 300 });
   }
 
   /** Valida el archivo subido. Si no cumple, lo borra y responde con el error. */

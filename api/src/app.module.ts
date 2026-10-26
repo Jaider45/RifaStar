@@ -27,6 +27,7 @@ import { PaymentAccountsModule } from './payment-accounts/payment-accounts';
 import { PublicModule } from './public/public.module';
 import { RafflesModule } from './raffles/raffles.module';
 import { ResultsModule } from './results/results.module';
+import { LotteryModule } from './lottery/lottery.module';
 import { RankingModule } from './ranking/ranking.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { MyTicketsModule } from './my-tickets/my-tickets.module';
@@ -49,6 +50,7 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
     PlansModule,
     MessagingModule,
+    LotteryModule,
     JobsModule,
     OrganizationsModule,
     PaymentAccountsModule,

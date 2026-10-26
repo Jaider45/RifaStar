@@ -75,7 +75,10 @@ export default function Pagos() {
           {pendientes.map((p) => (
             <button key={p.id} type="button" className="pago-item" aria-pressed={p.id === selId} onClick={() => setActual(p.id)}>
               <div className="pago-item__info">
-                <div className="pago-item__nombre">{p.participant.name}</div>
+                <div className="pago-item__nombre">
+                  {p.participant.name}
+                  {(p.alerts?.duplicateReceipt.length ?? 0) > 0 && <span className="rs-badge rs-badge--urgente" style={{ marginLeft: 8 }}>Comprobante repetido</span>}
+                </div>
                 <div className="pago-item__meta">
                   {p.numbers.length === 1 ? 'Número' : 'Números'} {p.numbers.join(', ')} · {timeAgo(p.receipt?.uploadedAt ?? p.createdAt)}
                 </div>
@@ -140,8 +143,27 @@ export default function Pagos() {
                     </>
                   )}
                 </dl>
-                <div className="note note--ok">Revisa que el valor y la hora coincidan con el movimiento en tu cuenta.</div>
-                {can('payments.approve') && (
+                {(sel.alerts?.duplicateReceipt.length ?? 0) > 0 && (
+                  <div className="note note--alerta" role="alert" style={{ alignItems: 'flex-start' }}>
+                    <Icon name="info" size={18} style={{ flex: 'none', marginTop: 1 }} />
+                    <span>
+                      <b>Este mismo archivo ya se usó en otra orden.</b> Puede ser un comprobante reutilizado:
+                      {sel.alerts!.duplicateReceipt.map((d) => (
+                        <span key={d.orderId} style={{ display: 'block' }}>
+                          · {d.participantName} — {d.raffle} ({timeAgo(d.createdAt)})
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                )}
+                {sel.alerts?.ownSale ? (
+                  <div className="note note--fondo" role="status">
+                    Esta venta es tuya (tu código de vendedor). Otra persona del equipo tiene que aprobarla o rechazarla.
+                  </div>
+                ) : (
+                  <div className="note note--ok">Revisa que el valor y la hora coincidan con el movimiento en tu cuenta.</div>
+                )}
+                {can('payments.approve') && !sel.alerts?.ownSale && (
                   <div className="pago-detalle__acciones">
                     <button
                       type="button"
