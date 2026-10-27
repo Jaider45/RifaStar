@@ -16,6 +16,7 @@ import {
   RedesOrganizador,
   rememberLinkCodes,
   TextoConFormato,
+  unidadDe,
   type PublicRaffle,
 } from './shared';
 import './publico.css';
@@ -86,6 +87,7 @@ export default function Venta() {
   if (raffle.status === 'drawn' && raffle.resultsPublished) return <Navigate to={`/${org}/${sorteo}/resultado`} replace />;
 
   const page = raffle.page;
+  const u = unidadDe(raffle);
   const tz = organization.timezone;
   const cifras = raffle.digits;
   const enVenta = raffle.status === 'active' && (!raffle.salesCloseAt || new Date(raffle.salesCloseAt) > new Date());
@@ -152,7 +154,7 @@ export default function Venta() {
         {pendiente && (
           <Link to={`/${org}/${sorteo}/pagar`} className="note note--alerta" style={{ textDecoration: 'none' }}>
             <Icon name="timer" strokeWidth={2.2} style={{ flex: 'none' }} />
-            <span>Tienes números apartados en este sorteo. Toca aquí para terminar el pago.</span>
+            <span>Tienes {u.p} apartad{u.o}s en este sorteo. Toca aquí para terminar el pago.</span>
           </Link>
         )}
 
@@ -166,7 +168,7 @@ export default function Venta() {
 
         <section className={page.show.organizer ? 'venta__duo' : 'stack'}>
           <div className="venta__precio">
-            <span className="venta__eyebrow">Cada número</span>
+            <span className="venta__eyebrow">Cada {u.s}</span>
             <span className="rs-display venta__precio-valor">{cop(raffle.pricePerNumber)}</span>
           </div>
           {page.show.organizer && (
@@ -241,9 +243,9 @@ export default function Venta() {
 
         {enVenta && alAzar && (
           <section className="rs-card venta__azar stack" style={{ gap: 14 }}>
-            <h2 className="h2" style={{ lineHeight: '26px' }}>¿Cuántos números quieres?</h2>
+            <h2 className="h2" style={{ lineHeight: '26px' }}>¿Cuánt{u.o}s {u.p} quieres?</h2>
             <p className="muted" style={{ margin: 0 }}>
-              En este sorteo los números se asignan al azar. {raffle.minPerOrder > 1 ? `Compra mínima: ${raffle.minPerOrder} números.` : ''}
+              En este sorteo {u.los} {u.p} se asignan al azar. {raffle.minPerOrder > 1 ? `Compra mínima: ${raffle.minPerOrder} ${u.p}.` : ''}
             </p>
             <div className="cantidad" role="group" aria-label="Cantidad de números">
               <button type="button" className="rs-btn rs-btn--secundario icon-btn" aria-label="Uno menos" disabled={cantidad <= 1} onClick={() => setCantidad((c) => Math.max(1, c - 1))}>−</button>
@@ -261,7 +263,7 @@ export default function Venta() {
               disabled={cantidad < raffle.minPerOrder || libres === 0}
               onClick={() => navigate(`/${org}/${sorteo}/pagar`, { state: { cantidad } })}
             >
-              Comprar {cantidad} {cantidad === 1 ? 'número' : 'números'} · {cop(cantidad * raffle.pricePerNumber)}
+              Comprar {cantidad} {u.n(cantidad)} · {cop(cantidad * raffle.pricePerNumber)}
             </button>
           </section>
         )}
@@ -270,7 +272,7 @@ export default function Venta() {
           <>
             <section className="stack" style={{ gap: 12 }}>
               <div className="fila-sb" style={{ alignItems: 'flex-end' }}>
-                <h2 className="h2" style={{ lineHeight: '26px' }}>Elige tus números</h2>
+                <h2 className="h2" style={{ lineHeight: '26px' }}>Elige tus {u.p}</h2>
                 {page.show.remaining && <span className="venta__libres">{libres.toLocaleString('es-CO')} libres</span>}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -371,8 +373,8 @@ export default function Venta() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="resumen-compra__txt">
                   {sel.length === 0
-                    ? raffle.minPerOrder > 1 ? `Elige al menos ${raffle.minPerOrder} números` : 'Aún no eliges números'
-                    : `${sel.length} ${sel.length === 1 ? 'número' : 'números'}: ${ordenados.map((n) => pad(n, cifras)).join(', ')}`}
+                    ? raffle.minPerOrder > 1 ? `Elige al menos ${raffle.minPerOrder} ${u.p}` : `Aún no eliges ${u.p}`
+                    : `${sel.length} ${u.n(sel.length)}: ${ordenados.map((n) => pad(n, cifras)).join(', ')}`}
                   {sel.length > 0 && faltanMinimo > 0 && ` · faltan ${faltanMinimo}`}
                 </div>
                 <div className="rs-display resumen-compra__total">{cop(sel.length * raffle.pricePerNumber)}</div>
@@ -393,7 +395,7 @@ export default function Venta() {
         {!enVenta && (
           <section className="rs-card agotado">
             <h2 className="pub-title" style={{ fontSize: 22, lineHeight: '26px' }}>
-              {raffle.status === 'sold_out' ? '¡Se vendieron todos los números!' : raffle.status === 'cancelled' ? 'Este sorteo fue cancelado' : 'La venta de este sorteo cerró'}
+              {raffle.status === 'sold_out' ? `¡Se vendieron tod${u.o}s ${u.los} ${u.p}!` : raffle.status === 'cancelled' ? 'Este sorteo fue cancelado' : 'La venta de este sorteo cerró'}
             </h2>
             <Link to={`/${org}/${sorteo}/resultado`} className="rs-btn rs-btn--secundario">Ver resultado y próximo sorteo</Link>
           </section>

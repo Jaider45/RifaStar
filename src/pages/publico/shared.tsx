@@ -65,6 +65,8 @@ export interface PublicRaffle {
     totalNumbers: number;
     minPerOrder: number;
     numberSelection: 'choose' | 'random';
+    unitLabel: string;
+    unitLabelPlural: string;
     extraDigitsSource: 'series' | 'fifth_digit' | null;
     extraDigitsPosition: 'start' | 'end';
     accentColor: string;
@@ -81,6 +83,17 @@ export interface PublicRaffle {
 }
 
 /** Encabezado público con el logo, soporte por WhatsApp y «Mis boletos». */
+/**
+ * Cómo llama el organizador a cada unidad («número», «boleta», «puesto»…), con el género
+ * para concordar los textos: «¿Cuántas boletas?», «Tus números están apartados».
+ */
+export function unidadDe(r: { unitLabel?: string; unitLabelPlural?: string }) {
+  const s = r.unitLabel || 'número';
+  const p = r.unitLabelPlural || 'números';
+  const fem = s.endsWith('a');
+  return { s, p, n: (k: number) => (k === 1 ? s : p), o: fem ? 'a' : 'o', los: fem ? 'las' : 'los', P: p.charAt(0).toUpperCase() + p.slice(1) };
+}
+
 export function PubHeader({
   org,
   misBoletos = true,

@@ -103,4 +103,12 @@ describe('Personalización de la página pública (punto 3)', () => {
     expect(res.text).toContain('Cada número $6.000');
     expect(res.text).toContain(`http-equiv="refresh" content="0;url=http://localhost:5173/${t.org.slug}/${raffle.slug}"`);
   });
+
+  it('nombre de la unidad: se valida y llega a la página pública', async () => {
+    const raffle = await createRaffle(ctx, t, { extra: { unitLabel: 'Boleta', unitLabelPlural: 'boletas' } });
+    const pub = await ctx.http.get(`/v1/public/orgs/${t.org.slug}/raffles/${raffle.slug}`).expect(200);
+    expect(pub.body.raffle).toMatchObject({ unitLabel: 'boleta', unitLabelPlural: 'boletas' });
+    expect(await createRaffle(ctx, t)).toMatchObject({ unitLabel: 'número', unitLabelPlural: 'números' });
+    await ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send({ unitLabel: 'boleta #1' }).expect(400);
+  });
 });

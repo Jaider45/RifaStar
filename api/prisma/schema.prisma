@@ -661,6 +661,9 @@ model Raffle {
   pricePerNumber          Int                 @map("price_per_number")
   digits                  Int // SQL: CHECK (digits BETWEEN 2 AND 6)
   totalNumbers            Int                 @map("total_numbers") // 10^digits, fijado al crear
+  /// Cómo se llama cada unidad que se vende en la página pública («número», «boleta», «puesto»…).
+  unitLabel               String              @default("número") @map("unit_label")
+  unitLabelPlural         String              @default("números") @map("unit_label_plural")
   /// Compra mínima por participante: lo que ya tiene en el sorteo más lo nuevo debe llegar a este mínimo.
   minPerOrder             Int                 @default(1) @map("min_per_order")
   /// `random`: el participante solo dice cuántos números quiere y el sistema los asigna al azar.

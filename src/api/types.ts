@@ -106,6 +106,9 @@ export interface Raffle {
   totalNumbers: number;
   minPerOrder: number;
   numberSelection: NumberSelection;
+  /** Nombre de cada unidad: «número», «boleta», «puesto»… */
+  unitLabel: string;
+  unitLabelPlural: string;
   extraDigitsSource: ExtraDigitsSource | null;
   extraDigitsPosition: ExtraDigitsPosition;
   accentColor: string | null;

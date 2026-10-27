@@ -71,6 +71,8 @@ export class PublicRafflesService {
           totalNumbers: r.totalNumbers,
           minPerOrder: r.minPerOrder,
           numberSelection: r.numberSelection,
+          unitLabel: r.unitLabel,
+          unitLabelPlural: r.unitLabelPlural,
           extraDigitsSource: r.extraDigitsSource,
           extraDigitsPosition: r.extraDigitsPosition,
           accentColor: r.accentColor ?? org.defaultAccentColor,

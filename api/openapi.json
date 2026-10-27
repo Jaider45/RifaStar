@@ -5399,6 +5399,20 @@
             ],
             "default": "choose"
           },
+          "unitLabel": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 20,
+            "pattern": "^[\\p{L} ]+$",
+            "default": "número"
+          },
+          "unitLabelPlural": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 24,
+            "pattern": "^[\\p{L} ]+$",
+            "default": "números"
+          },
           "extraDigitsSource": {
             "type": "string",
             "enum": [
@@ -5693,6 +5707,20 @@
               "random"
             ],
             "default": "choose"
+          },
+          "unitLabel": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 20,
+            "pattern": "^[\\p{L} ]+$",
+            "default": "número"
+          },
+          "unitLabelPlural": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 24,
+            "pattern": "^[\\p{L} ]+$",
+            "default": "números"
           },
           "extraDigitsSource": {
             "type": "string",

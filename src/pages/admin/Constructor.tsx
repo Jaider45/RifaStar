@@ -143,6 +143,8 @@ export default function Constructor() {
   const [cierre, setCierre] = useState('15:30');
   const [precio, setPrecio] = useState('6000');
   const [minimo, setMinimo] = useState('1');
+  const [unidad, setUnidad] = useState('número');
+  const [unidades, setUnidades] = useState('números');
   const [cifras, setCifras] = useState<Digits>(2);
   const [seleccion, setSeleccion] = useState<NumberSelection>('choose');
   const [fuenteExtra, setFuenteExtra] = useState<ExtraDigitsSource>('series');
@@ -178,6 +180,8 @@ export default function Constructor() {
     setCierre(raffle.salesCloseAt ? isoToZoned(raffle.salesCloseAt, tz).time : '');
     setPrecio(String(raffle.pricePerNumber));
     setMinimo(String(raffle.minPerOrder));
+    setUnidad(raffle.unitLabel);
+    setUnidades(raffle.unitLabelPlural);
     setCifras(raffle.digits);
     setSeleccion(raffle.numberSelection);
     setFuenteExtra(raffle.extraDigitsSource ?? 'series');
@@ -244,6 +248,8 @@ export default function Constructor() {
       pricePerNumber: precioNum,
       digits: cifras,
       minPerOrder: Math.max(1, soloDigitos(minimo)),
+      unitLabel: unidad.trim().toLowerCase(),
+      unitLabelPlural: unidades.trim().toLowerCase(),
       numberSelection: seleccion,
       extraDigitsSource: grande ? (cifras === 6 ? 'series' : fuenteExtra) : null,
       extraDigitsPosition: posicionExtra,
@@ -256,7 +262,7 @@ export default function Constructor() {
       ...(slug && { slug }),
       prizes,
     };
-  }, [titulo, loteria, loteriaCodigo, drawIso, cierre, fecha, tz, precioNum, cifras, grande, minimo, seleccion, fuenteExtra, posicionExtra, acento, condicion, autorizacion, pagina, galeria, cuentas, slug, premios]);
+  }, [titulo, loteria, loteriaCodigo, drawIso, cierre, fecha, tz, precioNum, cifras, grande, minimo, unidad, unidades, seleccion, fuenteExtra, posicionExtra, acento, condicion, autorizacion, pagina, galeria, cuentas, slug, premios]);
 
   const guardar = useOrgMutation<void, Raffle>(async (_v, req) => {
     if (!raffle) return req<Raffle>('/v1/raffles', { body });
@@ -521,6 +527,14 @@ export default function Constructor() {
                   <label className="rs-label" htmlFor="minimo">Compra mínima por participante</label>
                   <input id="minimo" className="rs-in rs-mono" inputMode="numeric" value={minimo} disabled={bloqueado} onChange={(e) => setMinimo(e.target.value)} />
                   <p className="rs-help">Cuenta lo que ya compró en este sorteo: si el mínimo es 3 y ya tiene 3, puede sumar de a uno.</p>
+                </div>
+                <div>
+                  <label className="rs-label" htmlFor="unidad">Cómo llamas a cada número</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input id="unidad" className="rs-in" aria-label="Nombre en singular" placeholder="boleta" value={unidad} onChange={(e) => setUnidad(e.target.value)} />
+                    <input className="rs-in" aria-label="Nombre en plural" placeholder="boletas" value={unidades} onChange={(e) => setUnidades(e.target.value)} />
+                  </div>
+                  <p className="rs-help">Singular y plural: número, boleta, puesto, cupón… Sale en la página pública y en el comprobante.</p>
                 </div>
               </div>
               <fieldset className="bare-fieldset" disabled={bloqueado}>

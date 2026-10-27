@@ -43,6 +43,8 @@ const slug = z
   .regex(/^[a-z0-9](-?[a-z0-9])+$/, 'Usa solo letras minúsculas, números y guiones.')
   .max(60);
 
+const zUnit = (max: number) => z.string().trim().toLowerCase().min(2).max(max).regex(/^[\p{L} ]+$/u, 'Usa solo letras.');
+
 const RaffleFields = z.object({
   title: z.string().trim().min(3).max(120),
   slug: slug.optional(),
@@ -56,6 +58,9 @@ const RaffleFields = z.object({
   /** Compra mínima por participante en este sorteo. */
   minPerOrder: z.number().int().min(1).max(500).default(1),
   numberSelection: z.nativeEnum(NumberSelection).default('choose'),
+  /** Cómo se llama cada unidad que se vende: «número», «boleta», «puesto»… (singular y plural). */
+  unitLabel: zUnit(20).default('número'),
+  unitLabelPlural: zUnit(24).default('números'),
   extraDigitsSource: z.nativeEnum(ExtraDigitsSource).nullable().optional(),
   extraDigitsPosition: z.nativeEnum(ExtraDigitsPosition).default('end'),
   accentColor: zHexColor.nullable().optional(),

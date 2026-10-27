@@ -9,7 +9,7 @@ import { PubFrame } from '@/components/PubFrame';
 import { ErrorNote } from '@/components/ui';
 import { cop, pad } from '@/lib/format';
 import { useCountdown } from '@/lib/useCountdown';
-import { clearOrder, linkCodes, PubError, PubLoading, readOrder, saveOrder, type PublicRaffle } from './shared';
+import { clearOrder, linkCodes, PubError, PubLoading, readOrder, saveOrder, unidadDe, type PublicRaffle } from './shared';
 import './publico.css';
 
 interface PublicOrder {
@@ -44,14 +44,14 @@ function BotonCopiar({ texto }: { texto: string }) {
   );
 }
 
-function Apartado({ hasta }: { hasta: string }) {
+function Apartado({ hasta, u }: { hasta: string; u: ReturnType<typeof unidadDe> }) {
   const r = useCountdown(new Date(hasta).getTime());
   return (
     <div className="note note--alerta" role="status">
       <Icon name="timer" strokeWidth={2.2} style={{ flex: 'none' }} />
       <span>
         {r.total > 0 ? (
-          <>Tus números están apartados por <b className="rs-mono">{r.horas > 0 ? `${r.horas}:` : ''}{pad(r.minutos)}:{pad(r.segundos)}</b>. Paga y sube el comprobante antes de que se liberen.</>
+          <>Tus {u.p} están apartad{u.o}s por <b className="rs-mono">{r.horas > 0 ? `${r.horas}:` : ''}{pad(r.minutos)}:{pad(r.segundos)}</b>. Paga y sube el comprobante antes de que se liberen.</>
         ) : (
           'El tiempo de apartado terminó.'
         )}
@@ -89,6 +89,7 @@ export default function Pago() {
   if (raffle.isLoading || (stored && order.isLoading)) return <PubLoading />;
   if (raffle.error || !raffle.data) return <PubError error={raffle.error} />;
   const { raffle: r, organization } = raffle.data;
+  const u = unidadDe(r);
   const cifras = r.digits;
   const o = order.data;
   const nombreOrg = organization.name;
@@ -145,8 +146,8 @@ export default function Pago() {
       return (
         <PubFrame acento={r.accentColor} tema={r.page?.theme}>
           <main className="pub-main">
-            <p className="muted">Primero elige tus números.</p>
-            <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--primario boton-ancho">Elegir números</Link>
+            <p className="muted">Primero elige tus {u.p}.</p>
+            <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--primario boton-ancho">Elegir {u.p}</Link>
           </main>
         </PubFrame>
       );
@@ -154,21 +155,21 @@ export default function Pago() {
     const tomados = error instanceof ApiError && error.code === 'NUMBERS_TAKEN';
     return (
       <PubFrame acento={r.accentColor} tema={r.page?.theme}>
-        <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
+        <Cabecera org={org} sorteo={sorteo} titulo={r.title} u={u} />
         <main className="pub-main">
           <ol aria-label="Pasos de compra" className="pasos-compra">
-            <li>1 · Números</li>
+            <li>1 · {u.P}</li>
             <li aria-current="step">2 · Tus datos</li>
             <li>3 · Pago</li>
           </ol>
           <section className="rs-card resumen-pago">
             <div className="fila-sb">
-              <span style={{ font: '700 15px/20px var(--font-sans)' }}>Tus números</span>
+              <span style={{ font: '700 15px/20px var(--font-sans)' }}>Tus {u.p}</span>
               <Link to={`/${org}/${sorteo}`} className="strong-link">Cambiar</Link>
             </div>
             {cantidad > 0 ? (
               <p className="muted" style={{ margin: 0 }}>
-                {cantidad} {cantidad === 1 ? 'número' : 'números'} al azar. Te los mostramos apenas los apartes.
+                {cantidad} {u.n(cantidad)} al azar. Te los mostramos apenas los apartes.
               </p>
             ) : (
               <div className="chips">
@@ -196,9 +197,9 @@ export default function Pago() {
             </div>
             <ErrorNote error={error} />
             {tomados ? (
-              <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--primario boton-ancho">Elegir otros números</Link>
+              <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--primario boton-ancho">Elegir otr{u.o}s {u.p}</Link>
             ) : (
-              <button type="submit" className="rs-btn rs-btn--primario boton-ancho" disabled={busy}>{busy ? 'Apartando…' : 'Apartar mis números'}</button>
+              <button type="submit" className="rs-btn rs-btn--primario boton-ancho" disabled={busy}>{busy ? 'Apartando…' : `Apartar mis ${u.p}`}</button>
             )}
           </form>
         </main>
@@ -212,7 +213,7 @@ export default function Pago() {
     const espera = o.status === 'pending_verification';
     return (
       <PubFrame acento={r.accentColor} tema={r.page?.theme}>
-        <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
+        <Cabecera org={org} sorteo={sorteo} titulo={r.title} u={u} />
         <main className="pub-main">
           <section className="rs-card agotado">
             <div aria-hidden="true" className="agotado__icono"><Icon name={ok ? 'check' : espera ? 'clock' : 'info'} size={32} strokeWidth={3} /></div>
@@ -225,8 +226,8 @@ export default function Pago() {
                 : espera
                   ? `${nombreOrg} revisa el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.`
                   : o.status === 'rejected'
-                    ? `Motivo: ${o.rejectionReason}. Tus números quedaron libres.`
-                    : 'Los números se liberaron. Puedes volver a elegirlos si siguen libres.'}
+                    ? `Motivo: ${o.rejectionReason}. Tus ${u.p} quedaron libres.`
+                    : `${u.los.replace(/^l/, 'L')} ${u.p} se liberaron. Puedes volver a elegirl${u.o}s si siguen libres.`}
             </p>
             <div className="chips">
               {(ok ? o.tickets.map((t) => t.number) : o.numbers).map((n) => <span key={n} className="rs-mono boleto-chip">{n}</span>)}
@@ -257,17 +258,17 @@ export default function Pago() {
   const m = cuentas[medio] ?? cuentas[0];
   return (
     <PubFrame acento={r.accentColor} tema={r.page?.theme}>
-      <Cabecera org={org} sorteo={sorteo} titulo={r.title} />
+      <Cabecera org={org} sorteo={sorteo} titulo={r.title} u={u} />
       <main className="pub-main">
         <ol aria-label="Pasos de compra" className="pasos-compra">
-          <li>1 · Números</li>
+          <li>1 · {u.P}</li>
           <li>2 · Tus datos</li>
           <li aria-current="step">3 · Pago</li>
         </ol>
-        <Apartado hasta={o.reservedUntil} />
+        <Apartado hasta={o.reservedUntil} u={u} />
         <section className="rs-card resumen-pago">
           <div className="fila-sb">
-            <span style={{ font: '700 15px/20px var(--font-sans)' }}>Tus números</span>
+            <span style={{ font: '700 15px/20px var(--font-sans)' }}>Tus {u.p}</span>
             <button type="button" className="strong-link rs-btn rs-btn--fantasma rs-btn--sm" onClick={nuevaCompra}>Empezar de nuevo</button>
           </div>
           <div className="chips">
@@ -333,14 +334,14 @@ export default function Pago() {
   );
 }
 
-function Cabecera({ org, sorteo, titulo }: { org: string; sorteo: string; titulo: string }) {
+function Cabecera({ org, sorteo, titulo, u }: { org: string; sorteo: string; titulo: string; u: ReturnType<typeof unidadDe> }) {
   return (
     <header className="pub-header pub-header--bar">
-      <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--secundario rs-btn--sm icon-btn" aria-label="Volver a los números">
+      <Link to={`/${org}/${sorteo}`} className="rs-btn rs-btn--secundario rs-btn--sm icon-btn" aria-label={`Volver a ${u.los} ${u.p}`}>
         <Icon name="arrowLeft" strokeWidth={2.2} />
       </Link>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="header-titulo">Pagar mis números</div>
+        <div className="header-titulo">Pagar mis {u.p}</div>
         <div className="header-sub">{titulo}</div>
       </div>
     </header>
