@@ -59,9 +59,15 @@ los códigos se guardan durante la visita y viajan con la compra.
 ## Comprobaciones
 
 ```bash
-npm run build                      # WebApp: tipos + build
-cd api && npm run lint && npm test # API: lint y tests (necesita Postgres y Redis)
+npm run lint && npm test && npm run build   # WebApp: lint (sin advertencias), pruebas y build
+cd api && npm run lint && npm test          # API: lint y tests (necesita Postgres y Redis)
+npm audit && (cd api && npm audit)          # dependencias: 0 vulnerabilidades
 ```
 
 GitHub Actions corre lo mismo en cada pull request (`.github/workflows/ci.yml`) y además
-verifica que `api/openapi.json` esté al día.
+verifica que `api/openapi.json` esté al día y que ninguna dependencia tenga vulnerabilidades.
+
+Los lockfiles se generan con npm 10 (Node 20, igual que el CI y Docker). Con npm 11 o 12
+instala con `npm ci` y no regeneres el lockfile; para cambiar dependencias:
+`docker run --rm -v "$PWD:/w" -w /w node:20-bookworm-slim npm install --package-lock-only`.
+En la API, `deepmerge` es una copia segura en `api/vendor/deepmerge` (ver su `index.js`).

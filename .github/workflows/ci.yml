@@ -58,7 +58,7 @@ jobs:
           git diff --exit-code -- openapi.json || (echo "::error::openapi.json desactualizado: corre «npm run openapi» y súbelo." && exit 1)
 
   web:
-    name: Frontend (tipos y build)
+    name: Frontend (lint, tipos, pruebas y build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,4 +67,20 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
+      - run: npm audit --audit-level=low
+
+  audit:
+    name: Dependencias de la API sin vulnerabilidades
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm audit --audit-level=low

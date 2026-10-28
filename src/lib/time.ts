@@ -40,7 +40,7 @@ export function isoToZoned(iso: string, tz = DEFAULT_TZ): { date: string; time: 
   return { date: `${p.y}-${pad(p.m)}-${pad(p.d)}`, time: `${pad(p.h)}:${pad(p.mi)}` };
 }
 
-const clean = (s: string) => s.replace(/\./g, '').replace(/[\s  ]+/g, ' ').trim();
+const clean = (s: string) => s.replace(/\./g, '').replace(/[\s\u00a0\u202f]+/g, ' ').trim();
 
 /** «sáb 24 oct · 10:40 p. m.» */
 export function formatDraw(iso: string, tz = DEFAULT_TZ): string {
@@ -53,7 +53,7 @@ export function formatDraw(iso: string, tz = DEFAULT_TZ): string {
 export function formatTime(iso: string, tz = DEFAULT_TZ): string {
   return new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz })
     .format(new Date(iso))
-    .replace(/[\s  ]+/g, ' ');
+    .replace(/[\s\u00a0\u202f]+/g, ' ');
 }
 
 /** «24 oct» */

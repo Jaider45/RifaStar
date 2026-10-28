@@ -219,6 +219,8 @@ export default function Constructor() {
   }, [id, org]);
   useEffect(() => {
     if (!id && accounts.data && cuentas.length === 0) setCuentas(accounts.data.map((a) => a.id));
+    // Solo al cargar las cuentas: si dependiera de `cuentas`, desmarcarlas todas las volvería a marcar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, accounts.data]);
 
   const precioNum = soloDigitos(precio);
