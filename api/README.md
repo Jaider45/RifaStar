@@ -58,7 +58,11 @@ docker compose down -v && docker compose up -d --build
 **2FA:** el secreto TOTP de desarrollo es `JBSWY3DPEHPK3PXP` para la plataforma **y para los gestores**
 (owner, admin y verificadora; el vendedor no lo necesita). Agrégalo a Google Authenticator o a cualquier
 app TOTP para generar los códigos. Quien aprueba pagos, anuncia ganadores o maneja el equipo debe tener
-el 2FA activo, y el resultado de un sorteo se confirma con un código en el momento.
+el 2FA activo, y el resultado de un sorteo se confirma con un código en el momento. Cada código sirve
+**una sola vez**: para dos acciones seguidas, espera el siguiente código de la app.
+
+Con `NODE_ENV=production` el seed solo crea el catálogo base (planes, roles y permisos), nunca
+estos usuarios: sus claves son públicas.
 
 **Contenido del seed:**
 
@@ -130,6 +134,9 @@ base 15. Hay 188 tests en 24 archivos. Los obligatorios del documento están en:
 ## 4. Variables de entorno
 
 La API valida todas al arrancar (`src/config/env.ts`) y se detiene si falta alguna.
+Con `NODE_ENV=production` además exige valores reales: cookies `Secure`, URLs `https` que no sean
+localhost, secretos que no sean los de ejemplo, S3 (R2), SMTP real y WhatsApp (`MESSAGING_DRIVER=meta`)
+con todas sus claves. En producción tampoco se publica la documentación interactiva (`/v1/docs`).
 
 | Variable | Por defecto | Descripción |
 |---|---|---|

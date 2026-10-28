@@ -12,7 +12,7 @@ import {
   type TestContext,
   type TestOrg,
   tokenFor,
-  totp,
+  freshTotp,
 } from './helpers';
 
 describe('Plan de seguridad (puntos 1 a 5)', () => {
@@ -110,7 +110,7 @@ describe('Plan de seguridad (puntos 1 a 5)', () => {
       const put = (body: object) => ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send(body);
       expect((await put({ mainResult: '2435' }).expect(400)).body.code).toBe('VALIDATION_ERROR');
       expect((await put({ mainResult: '2435', totpCode: '000000' }).expect(401)).body.code).toBe('AUTH_2FA_INVALID');
-      await put({ mainResult: '2435', totpCode: totp() }).expect(200);
+      await put({ mainResult: '2435', totpCode: await freshTotp(ctx, t.owner.id) }).expect(200);
       const audit = await ctx.db.system.auditLog.findFirst({ where: { organizationId: t.org.id, action: 'result.enter' }, orderBy: { createdAt: 'desc' } });
       expect(audit?.after).toMatchObject({ mainResult: '2435', confirmedWith2fa: true });
     });

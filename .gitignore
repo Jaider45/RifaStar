@@ -4,3 +4,6 @@ dist
 .DS_Store
 dump.rdb
 api/docker-compose.override.yml
+.demo-preview.pid
+.demo-preview.log
+.vscode/

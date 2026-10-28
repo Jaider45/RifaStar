@@ -55,7 +55,7 @@ export class PlatformAuthService {
   async verify(challengeToken: string, code: string) {
     const user = await this.db.system.platformUser.findUniqueOrThrow({ where: { id: this.challengeUser(challengeToken) } });
     if (user.disabledAt) throw Errors.invalidCredentials();
-    if (!this.totp.verify(user.totpSecretEnc, code)) throw Errors.twoFactorInvalid();
+    if (!(await this.totp.consume('platform', user.id, user.totpSecretEnc, code))) throw Errors.twoFactorInvalid();
     const now = new Date();
     await this.db.system.platformUser.update({
       where: { id: user.id },

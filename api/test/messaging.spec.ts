@@ -7,7 +7,7 @@ import { SchedulerService } from '../src/jobs/scheduler.service';
 import { RedisService } from '../src/redis/redis.service';
 import { RankingService } from '../src/ranking/ranking.service';
 import { localMonthKey } from '../src/common/time';
-import { as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, totp } from './helpers';
+import { as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, freshTotp } from './helpers';
 import { createRaffle, nextPhone, reserveAndSubmit } from './fixtures';
 
 describe('WhatsApp y colas', () => {
@@ -137,7 +137,7 @@ describe('WhatsApp y colas', () => {
       const raffle = await createRaffle(ctx, t);
       const o = await reserveAndSubmit(ctx, t, raffle.slug, [35]);
       await ctx.http.post(`/v1/orders/${o.orderId}/approve`).set(as(t.ownerToken, t.org.id)).expect(200);
-      await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: '2435', anticipatedResult: '0000' }).expect(200);
+      await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: await freshTotp(ctx, t.owner.id), mainResult: '2435', anticipatedResult: '0000' }).expect(200);
       await ctx.http.post(`/v1/raffles/${raffle.id}/results/publish`).set(as(t.ownerToken, t.org.id)).expect(200);
       const res = await ctx.http.post(`/v1/raffles/${raffle.id}/results/notify`).set(as(t.ownerToken, t.org.id)).expect(402);
       expect(res.body.code).toBe('PLAN_QUOTA_WHATSAPP');

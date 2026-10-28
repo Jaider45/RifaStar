@@ -108,6 +108,13 @@ const PENDING: [number, number[]][] = [
 async function main() {
   await seedBase(prisma);
 
+  // Los datos de ejemplo traen claves y un secreto 2FA públicos (están en el README):
+  // en producción solo se siembra el catálogo base.
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Producción: catálogo base listo. Los datos de ejemplo (usuarios con claves conocidas) no se crean.');
+    return;
+  }
+
   if (await prisma.organization.findUnique({ where: { slug: 'michellys' } })) {
     console.log('El seed de ejemplo ya existe (usa «npm run db:reset» para empezar de cero).');
     return;

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import { Logo } from '@/components/Logo';
 import { PubFrame } from '@/components/PubFrame';
-import { ErrorNote, Loading } from '@/components/ui';
+import { ErrorNote, Foto, Loading } from '@/components/ui';
 import type { PageConfig } from '@/api/types';
 import { waLink } from '@/lib/phone';
 
@@ -107,7 +107,7 @@ export function PubHeader({
     <header className="pub-header">
       <Link to={`/${org.slug}`} aria-label="Inicio de la organización" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Logo variante={tema === 'light' ? 'negro' : 'blanco'} className="pub-header__logo" />
-        {org.logoUrl && <img src={org.logoUrl} alt="" width={36} height={36} style={{ borderRadius: 10, objectFit: 'cover' }} />}
+        <Foto src={org.logoUrl ?? undefined} alt="" width={36} height={36} style={{ borderRadius: 10, objectFit: 'cover' }} />
       </Link>
       <div style={{ display: 'flex', gap: 8 }}>
         {org.supportWhatsapp && (

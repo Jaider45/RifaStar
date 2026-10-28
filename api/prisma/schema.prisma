@@ -215,6 +215,8 @@ model PlatformUser {
   passwordHash  String       @map("password_hash")
   totpSecretEnc String?      @map("totp_secret_enc") // cifrado AES-GCM con KMS/ENV key
   totpEnabledAt DateTime?    @map("totp_enabled_at") @db.Timestamptz
+  /// Último paso TOTP aceptado: cada código sirve una sola vez.
+  totpLastStep  Int?         @map("totp_last_step")
   lastLoginAt   DateTime?    @map("last_login_at") @db.Timestamptz
   disabledAt    DateTime?    @map("disabled_at") @db.Timestamptz
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
@@ -469,6 +471,8 @@ model User {
   passwordHash    String?   @map("password_hash") // null mientras la invitación no se acepta
   totpSecretEnc   String?   @map("totp_secret_enc")
   totpEnabledAt   DateTime? @map("totp_enabled_at") @db.Timestamptz
+  /// Último paso TOTP aceptado: cada código sirve una sola vez.
+  totpLastStep    Int?      @map("totp_last_step")
   emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz
   /// WhatsApp del gestor (E.164) para avisos de resultados y ganadores. Solo se usa verificado.
   phone           String?

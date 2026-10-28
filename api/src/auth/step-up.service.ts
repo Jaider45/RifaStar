@@ -19,6 +19,6 @@ export class StepUpService {
     if (!org.memberId) throw Errors.forbidden();
     const member = await this.db.system.member.findUniqueOrThrow({ where: { id: org.memberId }, include: { user: true } });
     if (!member.user.totpEnabledAt) throw Errors.twoFactorSetupRequired();
-    if (!this.totp.verify(member.user.totpSecretEnc, code)) throw Errors.twoFactorInvalid();
+    if (!(await this.totp.consume('user', member.user.id, member.user.totpSecretEnc, code))) throw Errors.twoFactorInvalid();
   }
 }

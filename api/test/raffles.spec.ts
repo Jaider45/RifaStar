@@ -41,7 +41,7 @@ describe('Sorteos', () => {
 
   it('rechaza reglas de 2 cifras en sorteos de 4 cifras (P3) y fechas incoherentes', async () => {
     const bad = await ctx.http.post('/v1/raffles').set(as(t.ownerToken, t.org.id)).send(base({ digits: 4 })).expect(400);
-    expect(bad.body.message).toBe('La regla «last_two» no aplica a sorteos de 4 cifras.');
+    expect(bad.body.message).toBe('El premio 1 usa la regla «Dos últimas cifras», que no aplica a sorteos de 4 cifras. Cámbiala en la sección de premios.');
     const dates = await ctx.http
       .post('/v1/raffles')
       .set(as(t.ownerToken, t.org.id))
@@ -71,11 +71,38 @@ describe('Sorteos', () => {
     expect(await job!.isDelayed()).toBe(true);
   });
 
-  it('después de publicar no cambian cifras, precio ni dirección', async () => {
+  it('cambiar las cifras de un borrador junto con sus premios nuevos, en un solo paso', async () => {
+    const draft = await createRaffle(ctx, t, { publish: false });
+    const patch = (body: object) => ctx.http.patch(`/v1/raffles/${draft.id}`).set(as(t.ownerToken, t.org.id)).send(body);
+    // Sin los premios nuevos, los de 2 cifras que ya tiene no sirven para 4: el mensaje dice cuál y por qué.
+    const alone = await patch({ digits: 4 }).expect(400);
+    expect(alone.body.message).toBe('El premio 1 usa la regla «Dos últimas cifras», que no aplica a sorteos de 4 cifras. Cámbiala en la sección de premios.');
+    const ok = await patch({ digits: 4, prizes: [{ amountCop: 1_000_000, rule: 'full_number' }] }).expect(200);
+    expect(ok.body).toMatchObject({ digits: 4, totalNumbers: 10_000 });
+    expect(ok.body.prizes.map((p: { rule: string }) => p.rule)).toEqual(['full_number']);
+  });
+
+  it('publicado y sin ventas se edita todo; con números apartados o vendidos, solo las fechas', async () => {
     const raffle = await createRaffle(ctx, t);
-    const res = await ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send({ pricePerNumber: 7000 }).expect(409);
-    expect(res.body).toMatchObject({ code: 'RAFFLE_LOCKED_FIELD', details: { fields: ['pricePerNumber'] } });
-    await ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send({ conditionText: 'Pagos antes de las 3:30 p. m.' }).expect(200);
+    const patch = (body: object) => ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send(body);
+    const edited = await patch({
+      pricePerNumber: 7000,
+      digits: 3,
+      prizes: [{ amountCop: 500_000, rule: 'last_three' }],
+      slug: `editado-${raffle.slug}`,
+      pageConfig: { description: 'Corregido.' },
+    }).expect(200);
+    expect(edited.body).toMatchObject({ pricePerNumber: 7000, digits: 3, totalNumbers: 1000, slug: `editado-${raffle.slug}` });
+
+    expect((await reserve(ctx, t, edited.body.slug, { numbers: [5] })).status).toBe(201);
+    const locked = await patch({ pricePerNumber: 8000, title: 'Otro título' }).expect(409);
+    expect(locked.body).toMatchObject({ code: 'RAFFLE_HAS_SALES', details: { fields: ['title', 'pricePerNumber'] } });
+    await ctx.http.put(`/v1/raffles/${raffle.id}/prizes`).set(as(t.ownerToken, t.org.id)).send({ prizes: [{ amountCop: 1, rule: 'last_three' }] }).expect(409);
+
+    const drawAt = inHours(72);
+    const moved = await patch({ drawAt, salesCloseAt: inHours(70) }).expect(200);
+    expect(new Date(moved.body.drawAt).toISOString()).toBe(drawAt);
+    expect(moved.body.pricePerNumber).toBe(7000);
   });
 
   it('duplicar crea un borrador con los mismos premios', async () => {

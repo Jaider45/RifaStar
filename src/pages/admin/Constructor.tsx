@@ -18,7 +18,7 @@ import {
 import { Icon } from '@/components/Icon';
 import { Logo } from '@/components/Logo';
 import { PageHeader } from '@/components/PageHeader';
-import { copy, ErrorNote, Loading, Modal, OkNote } from '@/components/ui';
+import { copy, ErrorNote, Foto, Loading, Modal, OkNote } from '@/components/ui';
 import { ACENTOS, acentoPorColor, LOTERIAS } from '@/lib/acentos';
 import { cop, pad, soloDigitos } from '@/lib/format';
 import { formatDraw, isoToZoned, zonedToIso } from '@/lib/time';
@@ -165,7 +165,10 @@ export default function Constructor() {
   const [cargado, setCargado] = useState<string | null>(null);
 
   const raffle = existing.data;
-  const bloqueado = Boolean(raffle && raffle.status !== 'draft');
+  const publicado = Boolean(raffle && raffle.status !== 'draft');
+  // Con números apartados o vendidos solo se corrigen las fechas; antes de eso se puede cambiar todo.
+  const tomados = raffle ? raffle.progress.paid + raffle.progress.held : 0;
+  const conVentas = tomados > 0;
   const terminado = raffle?.status === 'drawn' || raffle?.status === 'cancelled';
 
   // Cargar el sorteo existente en el formulario.
@@ -266,14 +269,11 @@ export default function Constructor() {
 
   const guardar = useOrgMutation<void, Raffle>(async (_v, req) => {
     if (!raffle) return req<Raffle>('/v1/raffles', { body });
-    const { prizes, ...rest } = body;
-    const patch: Record<string, unknown> = { ...rest };
-    if (bloqueado) {
-      // Lo que define cómo se reparten y arman los números no cambia después de vender.
-      for (const f of ['digits', 'pricePerNumber', 'slug', 'numberSelection', 'extraDigitsSource', 'extraDigitsPosition', 'minPerOrder']) delete patch[f];
+    if (conVentas) {
+      return req<Raffle>(`/v1/raffles/${raffle.id}`, { method: 'PATCH', body: { drawAt: body.drawAt, salesCloseAt: body.salesCloseAt } });
     }
-    await req<Raffle>(`/v1/raffles/${raffle.id}`, { method: 'PATCH', body: patch });
-    return req<Raffle>(`/v1/raffles/${raffle.id}/prizes`, { method: 'PUT', body: { prizes } });
+    // Un solo cambio con los premios: si cambian las cifras, los premios nuevos se validan contra ellas.
+    return req<Raffle>(`/v1/raffles/${raffle.id}`, { method: 'PATCH', body });
   });
 
   /** Sube una foto de la galería o de un premio (guarda el sorteo primero si es nuevo). */
@@ -423,7 +423,33 @@ export default function Constructor() {
         ))}
       </ol>
 
-      <fieldset disabled={!can('raffles.edit') || terminado} className="bare-fieldset">
+      {conVentas && !terminado && can('raffles.edit') && (
+        <section className="rs-panel panel-pad" aria-labelledby="fechas-titulo">
+          <div>
+            <h2 className="h2" id="fechas-titulo">Fechas del sorteo</h2>
+            <p className="rs-help">
+              Ya hay {tomados} {tomados === 1 ? 'número apartado o vendido' : 'números apartados o vendidos'}: para no afectar a quien compró, solo puedes
+              corregir la fecha y las horas. Lo demás queda como está. Guarda con «Guardar cambios».
+            </p>
+          </div>
+          <div className="grid-auto" style={{ '--min': '180px' } as CSSProperties}>
+            <div>
+              <label className="rs-label" htmlFor="fecha-venta">Fecha del sorteo</label>
+              <input id="fecha-venta" className="rs-in" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </div>
+            <div>
+              <label className="rs-label" htmlFor="hora-venta">Hora del sorteo</label>
+              <input id="hora-venta" className="rs-in" type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+            </div>
+            <div>
+              <label className="rs-label" htmlFor="cierre-venta">Hora límite de pago</label>
+              <input id="cierre-venta" className="rs-in" type="time" value={cierre} onChange={(e) => setCierre(e.target.value)} />
+            </div>
+          </div>
+        </section>
+      )}
+
+      <fieldset disabled={!can('raffles.edit') || terminado || conVentas} className="bare-fieldset">
         <div className="split split--24">
           <div className="split__main">
             {/* 1. Información */}
@@ -515,17 +541,18 @@ export default function Constructor() {
               <div>
                 <h2 className="h2">2. Precio y números</h2>
                 <p className="rs-help">
-                  Define cuántos números se venden y cuánto cuesta cada uno.{bloqueado && ' Después de publicar no se pueden cambiar las cifras ni el precio.'}
+                  Define cuántos números se venden y cuánto cuesta cada uno.
+                  {publicado && !conVentas && ' Puedes cambiar todo hasta que se aparte o venda el primer número; desde ahí solo las fechas.'}
                 </p>
               </div>
               <div className="grid-auto">
                 <div>
                   <label className="rs-label" htmlFor="precio">Precio por número (COP)</label>
-                  <input id="precio" className="rs-in rs-mono" inputMode="numeric" value={precio} disabled={bloqueado} onChange={(e) => setPrecio(e.target.value)} />
+                  <input id="precio" className="rs-in rs-mono" inputMode="numeric" value={precio} onChange={(e) => setPrecio(e.target.value)} />
                 </div>
                 <div>
                   <label className="rs-label" htmlFor="minimo">Compra mínima por participante</label>
-                  <input id="minimo" className="rs-in rs-mono" inputMode="numeric" value={minimo} disabled={bloqueado} onChange={(e) => setMinimo(e.target.value)} />
+                  <input id="minimo" className="rs-in rs-mono" inputMode="numeric" value={minimo} onChange={(e) => setMinimo(e.target.value)} />
                   <p className="rs-help">Cuenta lo que ya compró en este sorteo: si el mínimo es 3 y ya tiene 3, puede sumar de a uno.</p>
                 </div>
                 <div>
@@ -537,7 +564,7 @@ export default function Constructor() {
                   <p className="rs-help">Singular y plural: número, boleta, puesto, cupón… Sale en la página pública y en el comprobante.</p>
                 </div>
               </div>
-              <fieldset className="bare-fieldset" disabled={bloqueado}>
+              <fieldset className="bare-fieldset">
                 <legend className="rs-label">Cantidad de números</legend>
                 <div className="chips">
                   {CIFRAS.map((c) => (
@@ -560,7 +587,7 @@ export default function Constructor() {
                 </div>
               </fieldset>
               {grande && (
-                <fieldset className="bare-fieldset rs-panel cifras-extra" disabled={bloqueado}>
+                <fieldset className="bare-fieldset rs-panel cifras-extra">
                   <legend className="rs-label">Cómo se arma el número ganador</legend>
                   <p className="rs-help" style={{ marginTop: 0 }}>
                     La lotería da 4 cifras. {cifras === 5 ? 'La quinta' : 'Las otras dos'} sale{cifras === 6 ? 'n' : ''} de:
@@ -582,7 +609,7 @@ export default function Constructor() {
                   <p className="note note--fondo rs-mono">{ejemploNumero(cifras, cifras === 6 ? 'series' : fuenteExtra, posicionExtra)}</p>
                 </fieldset>
               )}
-              <fieldset className="bare-fieldset" disabled={bloqueado}>
+              <fieldset className="bare-fieldset">
                 <legend className="rs-label">¿Quién elige los números?</legend>
                 <div className="chips">
                   <button type="button" className="rs-chip" aria-pressed={seleccion === 'choose'} onClick={() => setSeleccion('choose')}>El participante los elige</button>
@@ -673,7 +700,7 @@ export default function Constructor() {
                       </>
                     )}
                     <div className="premio-foto">
-                      {p.imageUrl && <img src={p.imageUrl} alt="" className="premio-foto__img" />}
+                      <Foto src={p.imageUrl ?? undefined} alt="" className="premio-foto__img" />
                       <label className="rs-btn rs-btn--secundario rs-btn--sm">
                         <Icon name="image" size={16} />
                         {p.imageUrl ? 'Cambiar foto' : 'Foto del premio'}
@@ -871,7 +898,7 @@ export default function Constructor() {
                 <div className="galeria-admin">
                   {galeria.map((g, i) => (
                     <div key={g.key} className="galeria-admin__item">
-                      <img src={g.url} alt={`Foto ${i + 1}`} />
+                      <Foto src={g.url} alt={`Foto ${i + 1}`} />
                       <button type="button" className="rs-btn rs-btn--secundario rs-btn--sm" aria-label={`Quitar foto ${i + 1}`} onClick={() => setGaleria((cur) => cur.filter((x) => x.key !== g.key))}>
                         <Icon name="trash" size={16} />
                       </button>
@@ -903,13 +930,13 @@ export default function Constructor() {
                     id="enlace"
                     className="prefixed__in"
                     value={slug}
-                    disabled={bloqueado}
                     onChange={(e) => {
                       setSlugTocado(true);
                       setSlug(slugify60(e.target.value));
                     }}
                   />
                 </div>
+                {publicado && <p className="rs-help">Si lo cambias, el enlace que ya compartiste deja de funcionar.</p>}
               </div>
             </section>
           </div>
@@ -927,7 +954,7 @@ export default function Constructor() {
                   <span className="rs-badge rs-badge--abierto">Abierto</span>
                 </div>
                 {raffle?.coverUrl ? (
-                  <img src={raffle.coverUrl} alt="" className="rs-foto preview__foto" style={{ objectFit: 'cover' }} />
+                  <Foto src={raffle.coverUrl} alt="" className="rs-foto preview__foto" style={{ objectFit: 'cover' }} />
                 ) : (
                   <div className="rs-foto preview__foto">Foto de portada</div>
                 )}

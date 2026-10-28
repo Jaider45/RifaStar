@@ -8,3 +8,5 @@
 .sorteo-cell__nombre { font: 700 15px/20px var(--font-sans); }
 .sorteo-cell__slug { font-size: 13px; line-height: 18px; color: var(--tinta-suave); }
 .sorteo-cell__vendidos { font: 600 13px/18px var(--font-sans); color: var(--tinta-suave); margin-top: 6px; }
+.sorteo-cell__link { color: inherit; text-decoration: none; }
+.sorteo-cell__link:hover, .sorteo-cell__link:focus-visible { text-decoration: underline; }

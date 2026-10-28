@@ -95,6 +95,10 @@ describe('Autenticación de usuarios de organización', () => {
     const noCode = await ctx.http.post('/v1/auth/login').send({ email: user.email, password: TEST_PASSWORD }).expect(401);
     expect(noCode.body.code).toBe('AUTH_2FA_REQUIRED');
     await ctx.http.post('/v1/auth/login').send({ email: user.email, password: TEST_PASSWORD, totpCode: '000000' }).expect(401);
+    // El mismo código que activó la verificación no sirve otra vez (un solo uso).
+    const usado = await ctx.http.post('/v1/auth/login').send({ email: user.email, password: TEST_PASSWORD, totpCode: authenticator.generate(setup.body.secret) }).expect(401);
+    expect(usado.body.code).toBe('AUTH_2FA_INVALID');
+    await ctx.db.system.user.update({ where: { id: user.id }, data: { totpLastStep: null } });
     await ctx.http
       .post('/v1/auth/login')
       .send({ email: user.email, password: TEST_PASSWORD, totpCode: authenticator.generate(setup.body.secret) })

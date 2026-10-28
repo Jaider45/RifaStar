@@ -1,5 +1,5 @@
 import { createRaffle, ensurePaymentAccount, inHours, nextPhone, reserve, reserveAndSubmit } from './fixtures';
-import { as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, totp } from './helpers';
+import { as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, freshTotp, resetTotp, totp } from './helpers';
 
 describe('Sorteos de 5 y 6 cifras, selección al azar y compra mínima por participante', () => {
   let ctx: TestContext;
@@ -62,8 +62,10 @@ describe('Sorteos de 5 y 6 cifras, selección al azar y compra mínima por parti
       const o = await reserveAndSubmit(ctx, t, raffle.slug, [winner]);
       await ctx.http.post(`/v1/orders/${o.orderId}/approve`).set(as(t.ownerToken, t.org.id)).expect(200);
       const put = (body: object) => ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), ...body });
+      await resetTotp(ctx, t.owner.id);
       const noSeries = await put({ mainResult: '4058' }).expect(400);
       expect(noSeries.body.message).toContain('serie');
+      await resetTotp(ctx, t.owner.id);
       const res = await put({ mainResult: '4058', seriesResult: '127' }).expect(200);
       expect(res.body.result.label).toBe(`4058 · serie 127 → ${winner}`);
       expect(res.body.prizes[0].winners[0]).toMatchObject({ number: String(winner), unsold: false });
@@ -75,7 +77,7 @@ describe('Sorteos de 5 y 6 cifras, selección al azar y compra mínima por parti
     const res = await ctx.http
       .put(`/v1/raffles/${raffle.id}/result`)
       .set(as(t.ownerToken, t.org.id))
-      .send({ totpCode: totp(), mainResult: '0507', fifthDigit: '3' })
+      .send({ totpCode: await freshTotp(ctx, t.owner.id), mainResult: '0507', fifthDigit: '3' })
       .expect(200);
     expect(res.body.prizes[0].winners[0]).toMatchObject({ number: '05073', unsold: true, label: 'No vendido' });
   });
@@ -101,9 +103,12 @@ describe('Sorteos de 5 y 6 cifras, selección al azar y compra mínima por parti
     expect((await reserve(ctx, t, raffle.slug, { numbers: [4], phone })).status).toBe(201);
   });
 
-  it('después de publicar no cambian las cifras, el modo ni la compra mínima', async () => {
+  it('el modo y la compra mínima se cambian hasta la primera venta', async () => {
     const raffle = await createRaffle(ctx, t, { digits: 5 });
-    const res = await ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send({ numberSelection: 'random', minPerOrder: 5 }).expect(409);
-    expect(res.body).toMatchObject({ code: 'RAFFLE_LOCKED_FIELD', details: { fields: ['numberSelection', 'minPerOrder'] } });
+    const patch = (body: object) => ctx.http.patch(`/v1/raffles/${raffle.id}`).set(as(t.ownerToken, t.org.id)).send(body);
+    await patch({ numberSelection: 'random', minPerOrder: 2 }).expect(200);
+    expect((await reserve(ctx, t, raffle.slug, { random: 2 })).status).toBe(201);
+    const res = await patch({ minPerOrder: 5 }).expect(409);
+    expect(res.body).toMatchObject({ code: 'RAFFLE_HAS_SALES', details: { fields: ['minPerOrder'] } });
   });
 });

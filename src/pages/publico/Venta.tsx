@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { usePublicQuery } from '@/api/hooks';
 import { Icon } from '@/components/Icon';
 import { PubFrame } from '@/components/PubFrame';
+import { Foto } from '@/components/ui';
 import { cop, pad } from '@/lib/format';
 import { decodeGrid, type NumberState } from '@/lib/grid';
 import { formatDraw } from '@/lib/time';
@@ -131,19 +132,23 @@ export default function Venta() {
       <PubHeader org={organization} tema={page.theme} />
 
       <div className="portada">
-        {fotos.length > 0 ? (
-          <img src={fotos[foto] ?? fotos[0]} alt={raffle.title} className="rs-foto portada__foto" style={{ objectFit: 'cover' }} />
-        ) : (
-          <div className="rs-foto portada__foto">
-            <Icon name="image" size={28} strokeWidth={1.8} />
-          </div>
-        )}
+        <Foto
+          src={fotos[foto] ?? fotos[0]}
+          alt={raffle.title}
+          className="rs-foto portada__foto"
+          style={{ objectFit: 'cover' }}
+          fallback={
+            <div className="rs-foto portada__foto">
+              <Icon name="image" size={28} strokeWidth={1.8} />
+            </div>
+          }
+        />
         <span className="rs-badge portada__badge">{ESTADO[raffle.status] ?? raffle.status}</span>
         {fotos.length > 1 && (
           <div className="galeria" role="tablist" aria-label="Fotos del premio">
             {fotos.map((u, i) => (
               <button key={u} type="button" role="tab" aria-selected={i === foto} className="galeria__mini" onClick={() => setFoto(i)} aria-label={`Foto ${i + 1}`}>
-                <img src={u} alt="" />
+                <Foto src={u} alt="" />
               </button>
             ))}
           </div>
@@ -226,7 +231,7 @@ export default function Venta() {
           <div className="rs-card list-card">
             {prizes.map((p, i) => (
               <div key={p.position} className="list-row venta__premio">
-                {p.imageUrl && <img src={p.imageUrl} alt="" className="venta__premio-foto" />}
+                <Foto src={p.imageUrl ?? undefined} alt="" className="venta__premio-foto" />
                 <span className={`rs-display venta__premio-monto${i === 0 ? ' venta__premio-monto--mayor' : ''}`}>{p.amountCop ? cop(p.amountCop) : p.description}</span>
                 <span className="venta__premio-regla">{p.ruleLabel}</span>
               </div>

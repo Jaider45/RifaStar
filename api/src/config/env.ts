@@ -83,9 +83,41 @@ export function env(): Env {
       const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
       throw new Error(`Configuración inválida:\n${issues}`);
     }
+    const problems = productionProblems(parsed.data);
+    if (problems.length > 0) throw new Error(`Configuración inválida para producción:\n${problems.join('\n')}`);
     cached = parsed.data;
   }
   return cached;
+}
+
+const DEV_SECRET = /dev-|cambia|test-|changeme/i;
+/** La de docker-compose.yml y .env.example («0123…» en base64). */
+const DEV_ENCRYPTION_KEY = 'MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=';
+
+/**
+ * En producción no se arranca con valores de desarrollo: proveedores simulados (que «funcionan»
+ * sin enviar nada), secretos de ejemplo, cookies sin `Secure` o direcciones locales.
+ */
+export function productionProblems(e: Env): string[] {
+  if (e.NODE_ENV !== 'production') return [];
+  const p: string[] = [];
+  const need = (ok: boolean, msg: string) => ok || p.push(msg);
+  need(e.COOKIE_SECURE, 'COOKIE_SECURE debe ser true (las cookies de sesión solo viajan por HTTPS).');
+  need(e.PUBLIC_BASE_URL.startsWith('https://'), 'PUBLIC_BASE_URL debe usar https://.');
+  need(!/localhost|127\.0\.0\.1/.test(e.CORS_ORIGINS + e.PUBLIC_BASE_URL), 'CORS_ORIGINS y PUBLIC_BASE_URL no pueden apuntar a localhost.');
+  for (const k of ['JWT_ACCESS_SECRET', 'JWT_PARTICIPANT_SECRET', 'HASH_PEPPER'] as const) {
+    need(!DEV_SECRET.test(e[k]), `${k} tiene un valor de ejemplo: genera uno aleatorio.`);
+  }
+  need(e.ENCRYPTION_KEY !== DEV_ENCRYPTION_KEY, 'ENCRYPTION_KEY es la de desarrollo: genera 32 bytes aleatorios en base64.');
+  need(e.STORAGE_DRIVER === 's3' && Boolean(e.S3_ENDPOINT && e.S3_ACCESS_KEY && e.S3_SECRET_KEY), 'El almacenamiento debe ser S3 (R2) con S3_ENDPOINT, S3_ACCESS_KEY y S3_SECRET_KEY.');
+  need(e.MAIL_DRIVER === 'smtp' && !/localhost|mailpit/.test(e.SMTP_URL), 'MAIL_DRIVER=smtp con un servidor de correo real en SMTP_URL.');
+  need(
+    e.MESSAGING_DRIVER === 'meta' && Boolean(e.WHATSAPP_PHONE_NUMBER_ID && e.WHATSAPP_ACCESS_TOKEN && e.WHATSAPP_APP_SECRET && e.WHATSAPP_VERIFY_TOKEN),
+    'MESSAGING_DRIVER=meta con WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET y WHATSAPP_VERIFY_TOKEN.',
+  );
+  if (e.LOTTERY_DRIVER === 'loteriaya') need(Boolean(e.LOTERIAYA_API_KEY), 'LOTTERY_DRIVER=loteriaya necesita LOTERIAYA_API_KEY.');
+  if (e.BILLING_DRIVER === 'stripe') need(Boolean(e.STRIPE_SECRET_KEY && e.STRIPE_WEBHOOK_SECRET), 'BILLING_DRIVER=stripe necesita STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET.');
+  return p;
 }
 
 /** Solo para tests: vuelve a leer process.env. */

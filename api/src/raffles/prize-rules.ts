@@ -26,6 +26,9 @@ const BASE_LABELS: Record<Exclude<PrizeRule, 'custom'>, string> = {
   anticipated_full_number: 'Anticipado (número completo)',
 };
 
+/** Nombre de la regla para mostrarle al organizador («Dos últimas cifras»). */
+export const ruleName = (rule: PrizeRule) => (rule === 'custom' ? 'Regla especial' : BASE_LABELS[rule]);
+
 export interface PrizeLike {
   rule: PrizeRule;
   customRuleText: string | null;

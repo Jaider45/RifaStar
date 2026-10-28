@@ -27,6 +27,20 @@ funcionan sin configurar CORS. Para apuntar a otra API:
   directamente (agrega el origen de la WebApp a `CORS_ORIGINS` de la API).
 
 Usuarios de ejemplo: ver [api/README.md › Usuarios del seed](api/README.md#usuarios-del-seed).
+Esas claves son públicas: el seed no crea los datos de ejemplo cuando `NODE_ENV=production`.
+
+## Demo por internet
+
+```bash
+npm run demo             # levanta Docker + túneles de Cloudflare, compila y sirve la web
+npm run demo -- --stop   # apaga los túneles y la web del demo
+```
+
+Usa túneles rápidos de Cloudflare (sin cuenta): la URL `https://xxxx.trycloudflare.com` cambia
+cada vez que se reinician, y el script la vuelve a poner en la API (`PUBLIC_BASE_URL`,
+`S3_PUBLIC_ENDPOINT`) en `api/docker-compose.override.yml`. Tras reiniciar el equipo, los
+contenedores vuelven solos; corre `npm run demo` otra vez para tener la URL nueva.
+Quien tenga la URL puede entrar con las claves del seed.
 
 ## Rutas de la WebApp
 

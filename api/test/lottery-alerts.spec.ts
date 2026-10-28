@@ -4,7 +4,7 @@ import { FakeLotteryProvider, LotteryProvider, type ProviderResult } from '../sr
 import { LotteryService } from '../src/lottery/lottery.service';
 import { ManagerAlertsService } from '../src/messaging/manager-alerts.service';
 import { BOYACA_PRIZES, createRaffle, reserveAndSubmit } from './fixtures';
-import { addMember, as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, totp } from './helpers';
+import { addMember, as, closeTestApp, createOrg, createTestApp, type TestContext, type TestOrg, freshTotp, resetTotp, totp } from './helpers';
 
 const result = (over: Partial<ProviderResult>): ProviderResult => ({
   draw: 'loteria-de-boyaca',
@@ -89,6 +89,7 @@ describe('Resultados de LoteríaYa y avisos a los gestores (puntos 1 y 2)', () =
 
     const put = (main: string) =>
       ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: main, anticipatedResult: '1273' });
+    await resetTotp(ctx, t.owner.id);
     await put('4058').expect(200);
     const mail = ctx.mail.lastTo(admin.user.email)!;
     expect(mail.subject).toBe(`Ganadores de «${raffle.title}»`);
@@ -100,6 +101,7 @@ describe('Resultados de LoteríaYa y avisos a los gestores (puntos 1 y 2)', () =
     const before = ctx.mail.outbox.length;
     await ctx.app.get(ManagerAlertsService).winnersComputed(t.org.id, raffle.id); // misma revisión: nada
     expect(ctx.mail.outbox.length).toBe(before);
+    await resetTotp(ctx, t.owner.id);
     await put('4059').expect(200); // corrección → aviso nuevo
     expect(ctx.mail.outbox.length).toBeGreaterThan(before);
   });
@@ -108,7 +110,7 @@ describe('Resultados de LoteríaYa y avisos a los gestores (puntos 1 y 2)', () =
     const { raffle } = await playedRaffle();
     const o = await reserveAndSubmit(ctx, t, raffle.slug, [35]);
     await ctx.http.post(`/v1/orders/${o.orderId}/approve`).set(as(t.ownerToken, t.org.id)).expect(200);
-    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: totp(), mainResult: '2435' }).expect(200);
+    await ctx.http.put(`/v1/raffles/${raffle.id}/result`).set(as(t.ownerToken, t.org.id)).send({ totpCode: await freshTotp(ctx, t.owner.id), mainResult: '2435' }).expect(200);
     await ctx.db.system.drawResult.update({ where: { raffleId: raffle.id }, data: { enteredAt: new Date(Date.now() - 49 * 3_600_000) } });
 
     const alerts = ctx.app.get(ManagerAlertsService);

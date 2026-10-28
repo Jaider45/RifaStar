@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { usePublicQuery } from '@/api/hooks';
 import { Badge } from '@/components/Badge';
 import { PubFrame } from '@/components/PubFrame';
-import { Empty } from '@/components/ui';
+import { Empty, Foto } from '@/components/ui';
 import { cop } from '@/lib/format';
 import { formatDraw } from '@/lib/time';
 import { AvisameForm } from './Agotado';
@@ -37,7 +37,7 @@ export default function OrgPublica() {
           {enVenta.length === 0 && <Empty>No hay sorteos en venta ahora.</Empty>}
           {enVenta.map((r) => (
             <Link key={r.slug} to={`/${o.slug}/${r.slug}`} className="rs-card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, textDecoration: 'none', color: 'inherit' }}>
-              {r.coverUrl && <img src={r.coverUrl} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 12 }} />}
+              <Foto src={r.coverUrl ?? undefined} alt="" style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: 12 }} />
               <b style={{ font: '800 18px/24px var(--font-sans)' }}>{r.title}</b>
               <span className="muted">{r.lottery} · {formatDraw(r.drawAt, o.timezone)}</span>
               <div className="rs-progreso"><span style={{ width: `${Math.round((r.progress.paid / r.progress.total) * 100)}%` }} /></div>

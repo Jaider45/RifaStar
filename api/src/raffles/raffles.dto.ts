@@ -92,7 +92,8 @@ export class CreateRaffleDto extends createZodDto(
     if (issue) ctx.addIssue({ code: 'custom', path: ['extraDigitsSource'], message: issue });
   }),
 ) {}
-export class UpdateRaffleDto extends createZodDto(RaffleFields.partial().omit({ prizes: true })) {}
+/** `prizes` opcional: al cambiar las cifras se mandan junto con los premios nuevos (un solo cambio). */
+export class UpdateRaffleDto extends createZodDto(RaffleFields.partial().extend({ prizes: z.array(PrizeInput).max(20).optional() })) {}
 export class ReplacePrizesDto extends createZodDto(z.object({ prizes: z.array(PrizeInput).max(20) })) {}
 export class DuplicateRaffleDto extends createZodDto(
   z.object({ title: z.string().trim().min(3).max(120).optional(), drawAt: zDate.optional() }),

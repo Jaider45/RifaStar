@@ -46,6 +46,17 @@ export const TEST_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
 /** Código vigente para TEST_TOTP_SECRET. */
 export const totp = () => authenticator.generate(TEST_TOTP_SECRET);
 
+/** Cada código sirve una sola vez: libera el último paso usado por este usuario (solo en pruebas). */
+export async function resetTotp(ctx: TestContext, userId: string): Promise<void> {
+  await ctx.db.system.user.update({ where: { id: userId }, data: { totpLastStep: null } });
+}
+
+/** Código 2FA sin usar para `userId`. */
+export async function freshTotp(ctx: TestContext, userId: string): Promise<string> {
+  await resetTotp(ctx, userId);
+  return totp();
+}
+
 export async function createUser(ctx: TestContext, name = 'Persona Prueba', opts: { twoFactor?: boolean } = {}): Promise<User> {
   const passwordHash = await ctx.app.get(PasswordService).hash(TEST_PASSWORD);
   const twoFactor = opts.twoFactor ?? true;

@@ -5,7 +5,7 @@ import type { Raffle, RaffleStatus } from '@/api/types';
 import { Badge, type BadgeTono } from '@/components/Badge';
 import { Icon } from '@/components/Icon';
 import { PageHeader } from '@/components/PageHeader';
-import { copy, Empty, ErrorNote, Loading } from '@/components/ui';
+import { copy, Empty, ErrorNote, Foto, Loading } from '@/components/ui';
 import { useSession } from '@/api/session';
 import { cop, pad } from '@/lib/format';
 import { formatDay, formatDraw, formatTime } from '@/lib/time';
@@ -62,6 +62,8 @@ export default function Sorteos() {
   const d = dash.data;
   const next = d?.nextRaffle;
 
+  /** Se edita hasta que juega o se cancela (con ventas, solo las fechas: lo controla el editor). */
+  const editable = (r: Raffle) => can('raffles.edit') && r.status !== 'drawn' && r.status !== 'cancelled';
   const accion = (r: Raffle) => {
     if (r.status === 'draft') return can('raffles.edit') ? { to: `/admin/sorteos/${r.id}`, label: 'Continuar' } : null;
     if (r.status === 'drawn' || r.status === 'closed') return { to: `/admin/ganadores/${r.id}`, label: 'Ver resultado' };
@@ -153,13 +155,17 @@ export default function Sorteos() {
                     <tr key={r.id}>
                       <td>
                         <div className="sorteo-cell">
-                          {r.coverUrl ? (
-                            <img src={r.coverUrl} alt="" className="rs-foto sorteo-cell__foto" style={{ objectFit: 'cover' }} />
-                          ) : (
-                            <span className="rs-foto sorteo-cell__foto" aria-hidden="true" />
-                          )}
+                          <Foto
+                            src={r.coverUrl ?? undefined}
+                            alt=""
+                            className="rs-foto sorteo-cell__foto"
+                            style={{ objectFit: 'cover' }}
+                            fallback={<span className="rs-foto sorteo-cell__foto" aria-hidden="true" />}
+                          />
                           <div>
-                            <div className="sorteo-cell__nombre">{r.title}</div>
+                            <div className="sorteo-cell__nombre">
+                              {editable(r) ? <Link to={`/admin/sorteos/${r.id}`} className="sorteo-cell__link">{r.title}</Link> : r.title}
+                            </div>
                             <div className="rs-mono sorteo-cell__slug">{r.status === 'draft' ? 'Sin publicar' : enlace}</div>
                           </div>
                         </div>
@@ -192,6 +198,12 @@ export default function Sorteos() {
                             <Icon name={copiado === r.id ? 'check' : 'link'} size={16} />
                             {copiado === r.id ? 'Copiado' : 'Enlace'}
                           </button>
+                        )}
+                        {editable(r) && r.status !== 'draft' && (
+                          <Link to={`/admin/sorteos/${r.id}`} className="rs-btn rs-btn--secundario rs-btn--sm" aria-label={`Editar ${r.title}`}>
+                            <Icon name="pencil" size={16} />
+                            Editar
+                          </Link>
                         )}
                         {a && <Link to={a.to} className="rs-btn rs-btn--fantasma rs-btn--sm">{a.label}</Link>}
                       </td>

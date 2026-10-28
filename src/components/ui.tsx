@@ -1,6 +1,17 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ImgHTMLAttributes, type ReactNode } from 'react';
 import { errorMessage } from '@/api/client';
 import { Icon } from './Icon';
+
+/**
+ * Imagen del almacenamiento. Si no carga (enlace vencido, archivo borrado, sin conexión)
+ * muestra `fallback` (por defecto nada) en vez del ícono de imagen rota del navegador.
+ */
+export function Foto({ src, fallback = null, ...rest }: ImgHTMLAttributes<HTMLImageElement> & { fallback?: ReactNode }) {
+  const [rota, setRota] = useState(false);
+  useEffect(() => setRota(false), [src]);
+  if (!src || rota) return <>{fallback}</>;
+  return <img src={src} {...rest} onError={() => setRota(true)} />;
+}
 
 /** Aviso de error en español a partir de cualquier error de la API. */
 export function ErrorNote({ error, style }: { error: unknown; style?: React.CSSProperties }) {

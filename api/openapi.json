@@ -692,6 +692,138 @@
         ]
       }
     },
+    "/v1/receipts/eligible": {
+      "get": {
+        "operationId": "ReceiptsController_eligible",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Comprobantes de ingreso"
+        ]
+      }
+    },
+    "/v1/receipts": {
+      "get": {
+        "operationId": "ReceiptsController_list",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Comprobantes de ingreso"
+        ]
+      }
+    },
+    "/v1/receipts/orders/{orderId}": {
+      "post": {
+        "operationId": "ReceiptsController_issue",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Comprobantes de ingreso"
+        ]
+      }
+    },
+    "/v1/receipts/{id}": {
+      "get": {
+        "operationId": "ReceiptsController_get",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Comprobantes de ingreso"
+        ]
+      }
+    },
     "/v1/lotteries": {
       "get": {
         "operationId": "LotteriesController_catalog",
@@ -5152,6 +5284,7 @@
                 "payments.view",
                 "payments.approve",
                 "payments.release",
+                "receipts.issue",
                 "participants.view_contact",
                 "participants.export",
                 "sales.view_own",
@@ -5195,6 +5328,7 @@
                 "payments.view",
                 "payments.approve",
                 "payments.release",
+                "receipts.issue",
                 "participants.view_contact",
                 "participants.export",
                 "sales.view_own",
@@ -5840,6 +5974,79 @@
             "items": {
               "type": "string",
               "maxLength": 300
+            }
+          },
+          "prizes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "properties": {
+                "amountCop": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": true,
+                  "maximum": 10000000000,
+                  "exclusiveMaximum": false
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 200
+                },
+                "rule": {
+                  "type": "string",
+                  "enum": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ],
+                  "x-enumNames": [
+                    "last_two",
+                    "first_two",
+                    "middle_two",
+                    "digits_1_and_4",
+                    "anticipated_last_two",
+                    "custom",
+                    "last_three",
+                    "first_three",
+                    "full_number",
+                    "anticipated_full_number"
+                  ]
+                },
+                "customRuleText": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "anticipatedLottery": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 80
+                },
+                "anticipatedDrawCode": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "maxLength": 60,
+                  "nullable": true
+                },
+                "anticipatedDrawAt": {},
+                "imageKey": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "nullable": true
+                }
+              },
+              "required": [
+                "rule"
+              ]
             }
           },
           "paymentAccountIds": {
@@ -6527,6 +6734,7 @@
                 "payments.view",
                 "payments.approve",
                 "payments.release",
+                "receipts.issue",
                 "participants.view_contact",
                 "participants.export",
                 "sales.view_own",

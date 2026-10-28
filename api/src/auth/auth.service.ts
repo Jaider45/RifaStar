@@ -80,7 +80,7 @@ export class AuthService {
     if (!user || !ok) throw Errors.invalidCredentials();
     if (user.totpEnabledAt) {
       if (!dto.totpCode) throw Errors.twoFactorRequired();
-      if (!this.totp.verify(user.totpSecretEnc, dto.totpCode)) throw Errors.twoFactorInvalid();
+      if (!(await this.totp.consume('user', user.id, user.totpSecretEnc, dto.totpCode))) throw Errors.twoFactorInvalid();
     }
     await this.db.system.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     return { ...(await this.session(user.id)), userId: user.id };
@@ -143,14 +143,14 @@ export class AuthService {
   async enable2fa(userId: string, code: string): Promise<void> {
     const user = await this.db.system.user.findUniqueOrThrow({ where: { id: userId } });
     if (user.totpEnabledAt) return;
-    if (!this.totp.verify(user.totpSecretEnc, code)) throw Errors.twoFactorInvalid();
+    if (!(await this.totp.consume('user', user.id, user.totpSecretEnc, code))) throw Errors.twoFactorInvalid();
     await this.db.system.user.update({ where: { id: userId }, data: { totpEnabledAt: new Date() } });
   }
 
   async disable2fa(userId: string, code: string, password: string): Promise<void> {
     const user = await this.db.system.user.findUniqueOrThrow({ where: { id: userId } });
     if (!(await this.passwords.verify(user.passwordHash, password))) throw Errors.invalidCredentials();
-    if (!this.totp.verify(user.totpSecretEnc, code)) throw Errors.twoFactorInvalid();
+    if (!(await this.totp.consume('user', user.id, user.totpSecretEnc, code))) throw Errors.twoFactorInvalid();
     await this.db.system.user.update({ where: { id: userId }, data: { totpEnabledAt: null, totpSecretEnc: null } });
   }
 

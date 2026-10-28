@@ -14,7 +14,7 @@ import { StorageProvider } from '../storage/storage.provider';
 import { type UploadPolicy, UploadsService } from '../storage/uploads.service';
 import { can, type OrgContext } from '../tenancy/org-context';
 import { PageConfig, readPageConfig } from './page-config';
-import { prizeRuleLabel, RULES_BY_DIGITS } from './prize-rules';
+import { prizeRuleLabel, ruleName, RULES_BY_DIGITS } from './prize-rules';
 import {
   extraDigitsIssue,
   type CreateRaffleDto,
@@ -34,6 +34,12 @@ const SELLING: RaffleStatus[] = ['active', 'sold_out'];
 
 const notEditable = () =>
   Errors.conflict('RAFFLE_NOT_EDITABLE', 'Este sorteo ya terminó o fue cancelado y no se puede modificar.');
+
+/** Lo único que se puede corregir cuando ya hay números apartados o vendidos. */
+const DATE_FIELDS: ReadonlySet<string> = new Set(['drawAt', 'salesCloseAt']);
+const hasSales = (r: { paidCount: number; heldCount: number }) => r.paidCount + r.heldCount > 0;
+const salesLock = (fields: string[]) =>
+  Errors.conflict('RAFFLE_HAS_SALES', 'Este sorteo ya tiene números apartados o vendidos: solo se pueden cambiar las fechas.', { fields });
 
 @Injectable()
 export class RafflesService {
@@ -188,21 +194,16 @@ export class RafflesService {
     const raffle = await this.db.tenantTx(org.id, async (tx) => {
       const current = await this.find(tx, id);
       if (current.status === 'drawn' || current.status === 'cancelled') throw notEditable();
-      if (current.status !== 'draft') {
-        // Cambiar cómo se arma o se reparte el número después de vender afectaría a quien ya compró.
-        const locked = (
-          ['digits', 'pricePerNumber', 'slug', 'numberSelection', 'extraDigitsSource', 'extraDigitsPosition', 'minPerOrder'] as const
-        ).filter((f) => dto[f] !== undefined && dto[f] !== current[f]);
-        if (locked.length > 0) {
-          throw Errors.conflict(
-            'RAFFLE_LOCKED_FIELD',
-            'Después de publicar no se pueden cambiar las cifras, el precio, la dirección, cómo se eligen los números ni la compra mínima.',
-            { fields: locked },
-          );
-        }
+      // Con números apartados o vendidos solo se corrigen las fechas: lo demás afectaría a quien ya compró.
+      if (hasSales(current)) {
+        const locked = Object.keys(dto).filter((f) => !DATE_FIELDS.has(f));
+        if (locked.length > 0) throw salesLock(locked);
       }
+      const { paymentAccountIds, pageConfig, prizes, ...fields } = dto;
       const digits = dto.digits ?? current.digits;
-      if (dto.digits && dto.digits !== current.digits) this.validatePrizes(digits, current.prizes);
+      // Los premios nuevos (si vienen) se validan contra las cifras nuevas; si no, los que ya tiene.
+      if (prizes) await this.checkPrizes(tx, org.id, current, digits, prizes);
+      else if (dto.digits && dto.digits !== current.digits) this.validatePrizes(digits, current.prizes);
       // Si cambian las cifras, la fuente de las cifras extra tiene que seguir siendo válida.
       const extraDigitsSource = digits >= 5 ? (dto.extraDigitsSource === undefined ? current.extraDigitsSource : dto.extraDigitsSource) : null;
       const issue = extraDigitsIssue(digits, extraDigitsSource);
@@ -211,7 +212,6 @@ export class RafflesService {
       const slug = dto.slug && dto.slug !== current.slug ? await this.resolveSlug(tx, dto.slug, current.title) : undefined;
 
       if (dto.galleryKeys) await this.assertMedia(org.id, id, 'gallery', dto.galleryKeys, current.galleryKeys);
-      const { paymentAccountIds, pageConfig, ...fields } = dto;
       const updated = await tx.raffle.update({
         where: { id },
         data: {
@@ -223,6 +223,14 @@ export class RafflesService {
         },
       });
       if (paymentAccountIds) await this.linkPaymentAccounts(tx, org.id, id, paymentAccountIds);
+      if (prizes) await this.swapPrizes(tx, org.id, current, prizes);
+      else if (dto.drawAt && dto.drawAt.getTime() !== current.drawAt.getTime()) {
+        // Si se corre la fecha del sorteo, los anticipados se corren igual (siguen jugando el mismo día, a su hora).
+        const shift = dto.drawAt.getTime() - current.drawAt.getTime();
+        for (const p of current.prizes.filter((x) => x.anticipatedDrawAt)) {
+          await tx.prize.update({ where: { id: p.id }, data: { anticipatedDrawAt: new Date(p.anticipatedDrawAt!.getTime() + shift) } });
+        }
+      }
       await this.audit.record(tx, {
         action: 'raffle.update',
         entityType: 'raffle',
@@ -240,22 +248,9 @@ export class RafflesService {
     const raffle = await this.db.tenantTx(org.id, async (tx) => {
       const current = await this.find(tx, id);
       if (current.status === 'drawn' || current.status === 'cancelled') throw notEditable();
-      const hasResult = await tx.drawResult.count({ where: { raffleId: id } });
-      if (hasResult) throw Errors.conflict('RESULT_ALREADY_ENTERED', 'El resultado ya se registró: los premios no se pueden cambiar.');
-      this.validatePrizes(current.digits, prizes);
-      if (current.status !== 'draft' && prizes.length === 0) {
-        throw Errors.validation({ field: 'prizes' }, 'Un sorteo publicado necesita al menos un premio.');
-      }
-      await this.assertMedia(org.id, id, 'prize', prizes.map((p) => p.imageKey), current.prizes.map((p) => p.imageKey).filter((k): k is string => Boolean(k)));
-      await tx.prize.deleteMany({ where: { raffleId: id } });
-      await this.writePrizes(tx, org.id, id, prizes);
-      await this.audit.record(tx, {
-        action: 'raffle.prizes_replace',
-        entityType: 'raffle',
-        entityId: id,
-        before: current.prizes.map((p) => ({ rule: p.rule, amountCop: p.amountCop, description: p.description })),
-        after: prizes,
-      });
+      if (hasSales(current)) throw salesLock(['prizes']);
+      await this.checkPrizes(tx, org.id, current, current.digits, prizes);
+      await this.swapPrizes(tx, org.id, current, prizes);
       return this.find(tx, id);
     });
     return this.present(org, raffle);
@@ -448,6 +443,7 @@ export class RafflesService {
     const previous = await this.db.tenantTx(org.id, async (tx) => {
       const current = await this.find(tx, id);
       if (current.status === 'drawn' || current.status === 'cancelled') throw notEditable();
+      if (hasSales(current)) throw salesLock(['cover']);
       await tx.raffle.update({ where: { id }, data: { coverImageKey: file.key } });
       await this.audit.record(tx, { action: 'raffle.cover_update', entityType: 'raffle', entityId: id });
       return current.coverImageKey;
@@ -498,8 +494,34 @@ export class RafflesService {
     const issues = prizes
       .map((p, i) => ({ p, i }))
       .filter(({ p }) => !allowed.includes(p.rule))
-      .map(({ p, i }) => ({ path: ['prizes', i, 'rule'], message: `La regla «${p.rule}» no aplica a sorteos de ${digits} cifras.` }));
+      .map(({ p, i }) => ({
+        path: ['prizes', i, 'rule'],
+        message: `El premio ${i + 1} usa la regla «${ruleName(p.rule)}», que no aplica a sorteos de ${digits} cifras. Cámbiala en la sección de premios.`,
+      }));
     if (issues.length > 0) throw Errors.validation(issues, issues[0].message);
+  }
+
+  /** Valida una lista de premios nueva contra las cifras (y sus fotos) antes de reemplazar la actual. */
+  private async checkPrizes(tx: Tx, orgId: string, current: { id: string; status: string; prizes: { imageKey: string | null }[] }, digits: number, prizes: PrizeInput[]) {
+    const hasResult = await tx.drawResult.count({ where: { raffleId: current.id } });
+    if (hasResult) throw Errors.conflict('RESULT_ALREADY_ENTERED', 'El resultado ya se registró: los premios no se pueden cambiar.');
+    this.validatePrizes(digits, prizes);
+    if (current.status !== 'draft' && prizes.length === 0) {
+      throw Errors.validation({ field: 'prizes' }, 'Un sorteo publicado necesita al menos un premio.');
+    }
+    await this.assertMedia(orgId, current.id, 'prize', prizes.map((p) => p.imageKey), current.prizes.map((p) => p.imageKey).filter((k): k is string => Boolean(k)));
+  }
+
+  private async swapPrizes(tx: Tx, orgId: string, current: { id: string; prizes: Prize[] }, prizes: PrizeInput[]) {
+    await tx.prize.deleteMany({ where: { raffleId: current.id } });
+    await this.writePrizes(tx, orgId, current.id, prizes);
+    await this.audit.record(tx, {
+      action: 'raffle.prizes_replace',
+      entityType: 'raffle',
+      entityId: current.id,
+      before: current.prizes.map((p) => ({ rule: p.rule, amountCop: p.amountCop, description: p.description })),
+      after: prizes,
+    });
   }
 
   private validateDates(drawAt: Date, salesCloseAt: Date | null) {
