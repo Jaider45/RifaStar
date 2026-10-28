@@ -1088,6 +1088,7 @@ function CancelarSorteo({ onClose, onConfirm }: { onClose: () => void; onConfirm
       }
     >
       <p className="rs-help">Los apartados se liberan. Lo pagado se conserva y el reembolso lo haces tú; avisamos por WhatsApp a quienes pagaron.</p>
+      <p className="rs-help">Los comprobantes de ingreso ya emitidos siguen vigentes: en «Comprobantes» decides cuáles anular (si devolviste el dinero) y cuáles dejar.</p>
       <div>
         <label className="rs-label" htmlFor="motivo">Motivo</label>
         <input id="motivo" className="rs-in" value={reason} onChange={(e) => setReason(e.target.value)} />

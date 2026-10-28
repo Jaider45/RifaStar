@@ -9,6 +9,10 @@ import type { OrgContext } from '../tenancy/org-context';
 import { SettingsService } from '../settings/settings.service';
 
 const ORDER_INCLUDE = { raffle: true, participant: true, incomeReceipt: true } as const;
+export interface PageQuery {
+  cursor?: string;
+  limit: number;
+}
 type ReceiptSnapshot = {
   issuer: { name: string; taxId: string; address: string; phone: string; email: string; logoKey: string | null; accentColor: string };
   customer: { name: string; phone: string };
@@ -28,42 +32,78 @@ export class ReceiptsService {
     private readonly storage: StorageProvider,
   ) {}
 
-  eligible(org: OrgContext) {
+  eligible(org: OrgContext, page: PageQuery) {
     return this.db.tenantTx(org.id, async (tx) => {
       const orders = await tx.order.findMany({
         where: { status: 'approved', incomeReceipt: null },
         include: { raffle: { select: { title: true } }, participant: { select: { name: true } } },
-        orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }],
-        take: 200,
+        orderBy: [{ verifiedAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+        take: page.limit + 1,
+        ...(page.cursor && { cursor: { id: page.cursor }, skip: 1 }),
       });
-      return orders.map((order) => ({
-        orderId: order.id,
-        customer: order.participant.name,
-        raffle: order.raffle.title,
-        quantity: order.numbers.length,
-        totalCop: order.totalCop,
-        paidAt: order.verifiedAt ?? order.updatedAt,
-      }));
+      const items = orders.slice(0, page.limit);
+      return {
+        items: items.map((order) => ({
+          orderId: order.id,
+          customer: order.participant.name,
+          raffle: order.raffle.title,
+          quantity: order.numbers.length,
+          totalCop: order.totalCop,
+          paidAt: order.verifiedAt ?? order.updatedAt,
+        })),
+        nextCursor: orders.length > page.limit ? items[items.length - 1].id : null,
+      };
     });
   }
 
-  list(org: OrgContext) {
+  list(org: OrgContext, page: PageQuery) {
     return this.db.tenantTx(org.id, async (tx) => {
       const rows = await tx.incomeReceipt.findMany({
-        orderBy: { issuedAt: 'desc' },
-        take: 200,
-        include: { order: { select: { participant: { select: { name: true } } } } },
+        orderBy: [{ issuedAt: 'desc' }, { id: 'asc' }],
+        take: page.limit + 1,
+        ...(page.cursor && { cursor: { id: page.cursor }, skip: 1 }),
+        include: { order: { select: { participant: { select: { name: true } }, raffle: { select: { title: true, status: true } } } } },
       });
-      return rows.map((r) => ({
-        id: r.id,
-        sequence: r.sequence,
-        customer: r.order.participant.name,
-        issuedAt: r.issuedAt,
-        totalCop: (r.snapshot as unknown as ReceiptSnapshot).purchase.totalCop,
-        quantity: (r.snapshot as unknown as ReceiptSnapshot).purchase.quantity,
-        voidedAt: r.voidedAt,
-      }));
+      const items = rows.slice(0, page.limit);
+      // Vigentes de sorteos cancelados: el organizador decide si los anula (devolvió el dinero) o los deja.
+      const vigentesCancelados = await tx.incomeReceipt.count({ where: { voidedAt: null, order: { raffle: { status: 'cancelled' } } } });
+      return {
+        items: items.map((r) => ({
+          id: r.id,
+          sequence: r.sequence,
+          customer: r.order.participant.name,
+          raffle: r.order.raffle.title,
+          raffleCancelled: r.order.raffle.status === 'cancelled',
+          issuedAt: r.issuedAt,
+          totalCop: (r.snapshot as unknown as ReceiptSnapshot).purchase.totalCop,
+          quantity: (r.snapshot as unknown as ReceiptSnapshot).purchase.quantity,
+          voidedAt: r.voidedAt,
+        })),
+        nextCursor: rows.length > page.limit ? items[items.length - 1].id : null,
+        vigentesCancelados,
+      };
     });
+  }
+
+  /**
+   * Anulación manual (por ejemplo, si se canceló el sorteo y se devolvió el dinero). El comprobante
+   * no se borra: queda marcado como anulado con su motivo y no se puede volver a anular.
+   */
+  async void(org: OrgContext, id: string, reason: string) {
+    await this.db.tenantTx(org.id, async (tx) => {
+      const receipt = await tx.incomeReceipt.findFirst({ where: { id } });
+      if (!receipt) throw Errors.notFound('el comprobante');
+      if (receipt.voidedAt) throw Errors.conflict('RECEIPT_ALREADY_VOIDED', 'Este comprobante ya está anulado.');
+      await tx.incomeReceipt.update({ where: { id }, data: { voidedAt: new Date(), voidReason: reason } });
+      await this.audit.record(tx, {
+        action: 'receipt.void',
+        entityType: 'income_receipt',
+        entityId: id,
+        before: { status: 'valid' },
+        after: { status: 'void', reason },
+      });
+    });
+    return this.get(org, id);
   }
 
   async issue(org: OrgContext, orderId: string) {
@@ -144,7 +184,9 @@ export class ReceiptsService {
   }
 
   async get(org: OrgContext, id: string) {
-    const receipt = await this.db.tenantTx(org.id, (tx) => tx.incomeReceipt.findFirst({ where: { id } }));
+    const receipt = await this.db.tenantTx(org.id, (tx) =>
+      tx.incomeReceipt.findFirst({ where: { id }, include: { order: { select: { raffle: { select: { status: true } } } } } }),
+    );
     if (!receipt) throw Errors.notFound('el comprobante');
     const snapshot = receipt.snapshot as unknown as ReceiptSnapshot;
     const logoUrl = snapshot.issuer.logoKey ? await this.storage.signedGetUrl(snapshot.issuer.logoKey, 3600) : null;
@@ -154,6 +196,7 @@ export class ReceiptsService {
       issuedAt: receipt.issuedAt,
       voidedAt: receipt.voidedAt,
       voidReason: receipt.voidReason,
+      raffleCancelled: receipt.order.raffle.status === 'cancelled',
       snapshot: { ...snapshot, issuer: { ...snapshot.issuer, logoUrl } },
     };
   }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import { request, type RequestOptions } from './client';
 import { usePlatform } from './platform-session';
 import { useSession } from './session';
@@ -13,6 +13,19 @@ export function useOrgQuery<T>(path: string | null, options: Partial<UseQueryOpt
     enabled: Boolean(path && activeOrgId && (status === 'user' || status === 'support')),
     ...options,
   });
+}
+
+/** Lista paginada del panel ({ items, nextCursor }): las páginas se acumulan con «Cargar más». */
+export function useOrgPages<T, P extends { items: T[]; nextCursor: string | null }>(path: string | null) {
+  const { orgRequest, activeOrgId, status } = useSession();
+  const q = useInfiniteQuery<P>({
+    queryKey: ['org', activeOrgId, path, 'pages'],
+    queryFn: ({ pageParam }) => orgRequest<P>(`${path}${path!.includes('?') ? '&' : '?'}${pageParam ? `cursor=${pageParam}` : ''}`),
+    initialPageParam: null,
+    getNextPageParam: (last) => last.nextCursor,
+    enabled: Boolean(path && activeOrgId && (status === 'user' || status === 'support')),
+  });
+  return { ...q, items: q.data?.pages.flatMap((p) => p.items), first: q.data?.pages[0] };
 }
 
 /** Mutación del panel; al terminar invalida las consultas de la organización. */
