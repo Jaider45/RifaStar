@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { MessageStatus, Prisma } from '@prisma/client';
 import { Errors } from '../common/errors';
 import { localMonthKey } from '../common/time';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseService, type Tx } from '../database/database.service';
 import { JOB } from '../jobs/jobs.constants';
 import { SchedulerService } from '../jobs/scheduler.service';
 import { PlanPolicyService } from '../plans/plan-policy.service';
@@ -82,8 +82,8 @@ export class MessagesService {
     return rows.length === 1;
   }
 
-  private async refundQuota(organizationId: string, period: string, units: number): Promise<void> {
-    await this.db.system.$executeRaw`
+  private async refundQuota(organizationId: string, period: string, units: number, db: Pick<Tx, '$executeRaw'> = this.db.system): Promise<void> {
+    await db.$executeRaw`
       UPDATE usage_counters SET used = GREATEST(used - ${units}, 0), updated_at = now()
        WHERE organization_id = ${organizationId}::uuid AND metric = 'whatsapp_messages' AND period = ${period}`;
   }
@@ -131,11 +131,16 @@ export class MessagesService {
 
   /** Falla definitiva: se devuelve la cuota (el proveedor no cobra lo que no se envía). */
   async markFailed(messageId: string, error: string): Promise<void> {
-    const m = await this.db.system.messageLog.findUnique({ where: { id: messageId } });
-    if (!m || m.status !== 'queued') return;
-    await this.db.system.messageLog.update({ where: { id: m.id }, data: { status: 'failed', error: error.slice(0, 500) } });
-    if (m.attempts > 0) await this.refundQuota(m.organizationId!, m.quotaPeriod, m.quotaUnits);
-    this.logger.warn(`WhatsApp ${m.template} a ***${m.toPhone.slice(-4)} falló: ${error}`);
+    // Una sola vez y todo junto: lo llaman el procesador y el evento «failed» del worker, y quien
+    // vea el mensaje «failed» tiene que ver también la cuota ya devuelta.
+    const m = await this.db.system.$transaction(async (tx) => {
+      const marked = await tx.messageLog.updateMany({ where: { id: messageId, status: 'queued' }, data: { status: 'failed', error: error.slice(0, 500) } });
+      if (marked.count === 0) return null;
+      const row = await tx.messageLog.findUniqueOrThrow({ where: { id: messageId } });
+      if (row.attempts > 0) await this.refundQuota(row.organizationId!, row.quotaPeriod, row.quotaUnits, tx);
+      return row;
+    });
+    if (m) this.logger.warn(`WhatsApp ${m.template} a ***${m.toPhone.slice(-4)} falló: ${error}`);
   }
 
   /** Cuota restante del mes en curso. */

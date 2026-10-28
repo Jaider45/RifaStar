@@ -114,6 +114,20 @@ describe('WhatsApp y colas', () => {
       const usage = await ctx.db.system.usageCounter.findFirstOrThrow({ where: { organizationId: t.org.id } });
       expect(usage.used).toBe(0);
     });
+
+    it('la cuota se devuelve una sola vez aunque la falla llegue dos veces a la par', async () => {
+      const t = await createOrg(ctx);
+      const period = '2026-10';
+      await ctx.db.system.usageCounter.create({ data: { organizationId: t.org.id, metric: 'whatsapp_messages', period, used: 5 } });
+      // Ya intentado (attempts > 0): su unidad está descontada de la cuota.
+      const m = await ctx.db.system.messageLog.create({
+        data: { organizationId: t.org.id, template: 'otp_code', toPhone: '+573001112255', quotaPeriod: period, idempotencyKey: `t-doble-${t.org.id}`, attempts: 1 },
+      });
+      await Promise.all([messages.markFailed(m.id, 'Falla A'), messages.markFailed(m.id, 'Falla B')]);
+      const usage = await ctx.db.system.usageCounter.findFirstOrThrow({ where: { organizationId: t.org.id, period } });
+      expect(usage.used).toBe(4);
+      expect((await ctx.db.system.messageLog.findUniqueOrThrow({ where: { id: m.id } })).status).toBe('failed');
+    });
   });
 
   describe('cuota y plan (P6)', () => {
