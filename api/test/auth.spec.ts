@@ -23,7 +23,7 @@ describe('Autenticación de usuarios de organización', () => {
     expect(me.body.memberships).toHaveLength(1);
     expect(me.body.memberships[0].organization).toMatchObject({ slug, status: 'trial' });
     expect(me.body.memberships[0].role.key).toBe('owner');
-    expect(me.body.memberships[0].permissions).toHaveLength(15);
+    expect(me.body.memberships[0].permissions).toHaveLength(16); // todas las del catálogo
 
     const sub = await ctx.db.system.subscription.findFirstOrThrow({ where: { organizationId: res.body.organizationId } });
     expect(sub.status).toBe('trialing');

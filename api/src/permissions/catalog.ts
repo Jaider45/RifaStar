@@ -9,6 +9,7 @@ export const ORG_PERMISSIONS = [
   { key: 'payments.view', group: 'Pagos', description: 'Ver pagos y comprobantes' },
   { key: 'payments.approve', group: 'Pagos', description: 'Aprobar o rechazar pagos' },
   { key: 'payments.release', group: 'Pagos', description: 'Liberar números y reembolsar' },
+  { key: 'receipts.issue', group: 'Pagos', description: 'Emitir y consultar comprobantes de ingreso' },
   { key: 'participants.view_contact', group: 'Participantes', description: 'Ver nombre y WhatsApp' },
   { key: 'participants.export', group: 'Participantes', description: 'Exportar la base de datos' },
   { key: 'sales.view_own', group: 'Participantes', description: 'Ver ventas propias (código de vendedor)' },
@@ -71,7 +72,7 @@ export const BASE_ROLE_TEMPLATE: Record<BaseRoleKey, { name: string; description
   payment_verifier: {
     name: 'Verificador de pagos',
     description: 'Solo ve y aprueba pagos de los sorteos.',
-    permissions: ['raffles.view', 'payments.view', 'payments.approve', 'participants.view_contact'],
+    permissions: ['raffles.view', 'payments.view', 'payments.approve', 'receipts.issue', 'participants.view_contact'],
   },
   seller: {
     name: 'Vendedor',

@@ -312,7 +312,7 @@ está en `prisma/migrations/*_tenancy_rls`.
 | Grupo | Prefijo | Sesión |
 |---|---|---|
 | Autenticación de organización | `/v1/auth`, `/v1/invitations` | — / Bearer |
-| Panel de la organización | `/v1/raffles`, `/v1/orders`, `/v1/payments`, `/v1/participants`, `/v1/ranking`, `/v1/settings`, `/v1/team`, `/v1/roles`, `/v1/billing`, `/v1/dashboard`… | Bearer + `X-Organization-Id` |
+| Panel de la organización | `/v1/raffles`, `/v1/orders`, `/v1/payments`, `/v1/receipts`, `/v1/participants`, `/v1/ranking`, `/v1/settings`, `/v1/team`, `/v1/roles`, `/v1/billing`, `/v1/dashboard`… | Bearer + `X-Organization-Id` |
 | Público | `/v1/public/…` | sin sesión (rate limit) · token de orden · token de participante |
 | Plataforma | `/v1/platform/…` | Bearer de plataforma (después del TOTP) |
 | Webhooks | `/v1/webhooks/whatsapp`, `/v1/webhooks/billing/stripe` | firma |

@@ -15,6 +15,7 @@ const Registro = lazy(() => import('@/pages/acceso/Acceso').then((m) => ({ defau
 const Restablecer = lazy(() => import('@/pages/acceso/Acceso').then((m) => ({ default: m.Restablecer })));
 const PlataformaLogin = lazy(() => import('@/pages/acceso/PlataformaLogin'));
 const Ajustes = lazy(() => import('@/pages/admin/Ajustes'));
+const Comprobantes = lazy(() => import('@/pages/admin/Comprobantes'));
 const Constructor = lazy(() => import('@/pages/admin/Constructor'));
 const Ganador = lazy(() => import('@/pages/admin/Ganador'));
 const Pagos = lazy(() => import('@/pages/admin/Pagos'));
@@ -72,6 +73,8 @@ export default function App() {
               <Route path="ventas" element={<Ventas />} />
               <Route path="participantes" element={<Participantes />} />
               <Route path="ajustes" element={<Ajustes />} />
+              <Route path="comprobantes" element={<Comprobantes />} />
+              <Route path="comprobantes/:id" element={<Comprobantes />} />
             </Route>
           </Route>
 

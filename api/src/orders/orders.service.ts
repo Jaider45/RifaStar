@@ -260,6 +260,20 @@ export class OrdersService {
         await releaseHeldNumbers(tx, [id]);
       }
       await tx.order.update({ where: { id }, data: { status: 'released', releasedById: org.memberId, releasedAt: now, releaseReason: reason } });
+      const receiptToVoid = await tx.incomeReceipt.findFirst({ where: { orderId: id, voidedAt: null }, select: { id: true } });
+      const voidedReceipt = await tx.incomeReceipt.updateMany({
+        where: { orderId: id, voidedAt: null },
+        data: { voidedAt: now, voidReason: reason },
+      });
+      if (voidedReceipt.count) {
+        await this.audit.record(tx, {
+          action: 'receipt.void',
+          entityType: 'income_receipt',
+          entityId: receiptToVoid?.id,
+          before: { status: 'valid' },
+          after: { status: 'void', reason },
+        });
+      }
       event = this.event('released', org, o, now, reason);
       await this.hooks.runInTransaction(tx, event);
       await this.audit.record(tx, { action: 'order.release', entityType: 'order', entityId: id, before: { status: o.status }, after: { status: 'released', reason } });

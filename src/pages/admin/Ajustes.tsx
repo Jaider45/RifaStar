@@ -19,6 +19,7 @@ const TABS = [
   { id: 'negocio', nombre: 'Negocio y marca' },
   { id: 'seguridad', nombre: 'Seguridad' },
   { id: 'pagos', nombre: 'Pagos' },
+  { id: 'comprobantes', nombre: 'Comprobantes' },
   { id: 'ranking', nombre: 'Ranking' },
   { id: 'equipo', nombre: 'Equipo y roles' },
   { id: 'notif', nombre: 'Notificaciones' },
@@ -100,6 +101,7 @@ export default function Ajustes() {
           {tab === 'negocio' && <Negocio />}
           {tab === 'seguridad' && <Seguridad />}
           {tab === 'pagos' && <Pagos />}
+          {tab === 'comprobantes' && <ComprobantesAjustes />}
           {tab === 'ranking' && <RankingAjustes />}
           {tab === 'equipo' && <Equipo />}
           {tab === 'notif' && <Notificaciones />}
@@ -275,6 +277,54 @@ function Negocio() {
 // ---------------------------------------------------------------------------
 // Pagos
 // ---------------------------------------------------------------------------
+
+function ComprobantesAjustes() {
+  const can = useCan();
+  const form = useSectionForm<{
+    issuerName: string;
+    taxId: string;
+    address: string;
+    phone: string;
+    email: string;
+    conceptTemplate: string;
+    unitLabel: string;
+    footer: string;
+  }>('receipts');
+  const draft = form.draft;
+  const set = (key: keyof NonNullable<typeof draft>, value: string) => draft && form.setDraft({ ...draft, [key]: value });
+
+  if (!draft) return form.q.error ? <ErrorNote error={form.q.error} /> : <Loading />;
+  const editable = can('settings.brand');
+  return (
+    <section className="rs-panel panel-pad" style={{ gap: 18 }}>
+      <div>
+        <h2 className="h2 h2--lg">Comprobantes de ingreso</h2>
+        <p className="muted">Personaliza los datos que aparecerán en los comprobantes nuevos. Los ya emitidos conservan su versión original.</p>
+      </div>
+      <ErrorNote error={form.save.error} />
+      <fieldset className="bare-fieldset stack" style={{ gap: 16 }} disabled={!editable}>
+        <div className="grid-auto" style={{ '--min': '220px' } as CSSProperties}>
+          <div><label className="rs-label" htmlFor="rec-issuer">Nombre o razón social</label><input id="rec-issuer" className="rs-in" maxLength={120} value={draft.issuerName} onChange={(e) => set('issuerName', e.target.value)} placeholder="Usar el nombre de la organización" /></div>
+          <div><label className="rs-label" htmlFor="rec-tax">NIT o documento (opcional)</label><input id="rec-tax" className="rs-in" maxLength={40} value={draft.taxId} onChange={(e) => set('taxId', e.target.value)} /></div>
+          <div><label className="rs-label" htmlFor="rec-address">Dirección</label><input id="rec-address" className="rs-in" maxLength={180} value={draft.address} onChange={(e) => set('address', e.target.value)} /></div>
+          <div><label className="rs-label" htmlFor="rec-phone">Teléfono de contacto</label><input id="rec-phone" className="rs-in" maxLength={30} value={draft.phone} onChange={(e) => set('phone', e.target.value)} /></div>
+          <div><label className="rs-label" htmlFor="rec-email">Correo de contacto</label><input id="rec-email" className="rs-in" type="email" maxLength={120} value={draft.email} onChange={(e) => set('email', e.target.value)} /></div>
+        </div>
+        <div>
+          <label className="rs-label" htmlFor="rec-template">Concepto de compra</label>
+          <input id="rec-template" className="rs-in" maxLength={180} value={draft.conceptTemplate} onChange={(e) => set('conceptTemplate', e.target.value)} />
+          <p className="rs-help">Variables: {'{cantidad}'}, {'{concepto}'} y {'{sorteo}'}. Ejemplo: «Se compraron 100 tickets para el sorteo Gran Premio».</p>
+        </div>
+        <div className="grid-auto" style={{ '--min': '220px' } as CSSProperties}>
+          <div><label className="rs-label" htmlFor="rec-unit">Nombre de cada unidad</label><input id="rec-unit" className="rs-in" maxLength={32} value={draft.unitLabel} onChange={(e) => set('unitLabel', e.target.value)} placeholder="números, tickets, boletos…" /></div>
+          <div><label className="rs-label" htmlFor="rec-footer">Mensaje al final</label><input id="rec-footer" className="rs-in" maxLength={300} value={draft.footer} onChange={(e) => set('footer', e.target.value)} /></div>
+        </div>
+      </fieldset>
+      <p className="rs-help">Se incluye el detalle de la compra, cantidad, valor unitario, total, boletos y datos del cliente. El logo y color usan la marca de tu organización.</p>
+      <Acciones dirty={form.dirty} saving={form.save.isPending} onReset={form.reset} onSave={() => form.save.mutateAsync().catch(() => undefined)} />
+    </section>
+  );
+}
 
 function Pagos() {
   const can = useCan();

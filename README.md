@@ -33,7 +33,7 @@ Usuarios de ejemplo: ver [api/README.md › Usuarios del seed](api/README.md#usu
 | Ruta | Para quién |
 | --- | --- |
 | `/login`, `/registro`, `/invitacion/:token`, `/olvide` | Acceso del organizador y su equipo |
-| `/admin/*` | Panel: sorteos, pagos, ganadores, ranking, ventas, participantes y ajustes |
+| `/admin/*` | Panel: sorteos, pagos, comprobantes de ingreso, ganadores, ranking, ventas, participantes y ajustes |
 | `/plataforma/login`, `/plataforma/*` | Equipo de Rifa Star (2FA obligatorio) |
 | `/{org}` | Página pública de la organización |
 | `/{org}/{sorteo}` → `/pagar` → `/resultado` | Compra de números y resultados |

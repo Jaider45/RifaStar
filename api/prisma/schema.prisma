@@ -78,6 +78,7 @@ enum SettingsSection {
   ranking
   notifications
   branding
+  receipts
 }
 
 enum PaymentAccountType {
@@ -438,6 +439,7 @@ model Organization {
   suspendedAt            DateTime? @map("suspended_at") @db.Timestamptz
   suspensionReason       String?   @map("suspension_reason")
   raffleSequence         Int       @default(0) @map("raffle_sequence") // para códigos RS-0042-07
+  receiptSequence        Int       @default(0) @map("receipt_sequence")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -453,6 +455,7 @@ model Organization {
   rankingPeriods  RankingPeriod[]
   auditLogs       AuditLog[]
   supportSessions SupportSession[]
+  incomeReceipts  IncomeReceipt[]
 
   @@index([status])
   @@map("organizations")
@@ -831,13 +834,14 @@ model Order {
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization   @relation(fields: [organizationId], references: [id])
-  raffle       Raffle         @relation(fields: [raffleId], references: [id])
-  participant  Participant    @relation(fields: [participantId], references: [id])
-  seller       Member?        @relation("SellerOrders", fields: [sellerMemberId], references: [id])
-  heldNumbers  RaffleNumber[]
-  tickets      Ticket[]
-  pointsEvents PointsEvent[]
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  raffle        Raffle         @relation(fields: [raffleId], references: [id])
+  participant   Participant    @relation(fields: [participantId], references: [id])
+  seller        Member?        @relation("SellerOrders", fields: [sellerMemberId], references: [id])
+  heldNumbers   RaffleNumber[]
+  tickets       Ticket[]
+  incomeReceipt IncomeReceipt?
+  pointsEvents  PointsEvent[]
 
   @@unique([raffleId, idempotencyKey])
   @@index([organizationId, status, receiptUploadedAt]) // cola: más antiguos primero
@@ -847,6 +851,27 @@ model Order {
   @@index([organizationId, sellerMemberId, createdAt])
   @@index([organizationId, receiptSha256])
   @@map("orders")
+}
+
+/// Comprobante interno de ingreso emitido a solicitud del encargado.
+/// `snapshot` conserva el detalle y la identidad comercial al momento de emitirlo.
+model IncomeReceipt {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  orderId        String    @unique @map("order_id") @db.Uuid
+  sequence       Int
+  snapshot       Json
+  issuedById     String?   @map("issued_by_id") @db.Uuid
+  issuedAt       DateTime  @default(now()) @map("issued_at") @db.Timestamptz
+  voidedAt       DateTime? @map("voided_at") @db.Timestamptz
+  voidReason     String?   @map("void_reason")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+
+  @@unique([organizationId, sequence])
+  @@index([organizationId, issuedAt])
+  @@map("income_receipts")
 }
 
 model Ticket {

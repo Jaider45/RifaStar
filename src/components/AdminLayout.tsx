@@ -10,6 +10,7 @@ const NAV: { to: string; label: string; icon: IconName; end?: boolean; permissio
   { to: '/admin', label: 'Mis sorteos', icon: 'grid', end: true, permission: 'raffles.view' },
   { to: '/admin/sorteos/nuevo', label: 'Constructor', icon: 'pencil', permission: 'raffles.edit' },
   { to: '/admin/pagos', label: 'Pagos', icon: 'card', permission: 'payments.view' },
+  { to: '/admin/comprobantes', label: 'Comprobantes', icon: 'receipt', permission: 'receipts.issue' },
   { to: '/admin/ganadores', label: 'Ganadores', icon: 'trophy', permission: 'raffles.view' },
   { to: '/admin/ranking', label: 'Ranking', icon: 'chart', permission: 'raffles.view' },
   { to: '/admin/ventas', label: 'Mis ventas', icon: 'ticket', permission: 'sales.view_own' },

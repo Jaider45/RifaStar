@@ -35,6 +35,7 @@ import { PlansModule } from './plans/plans.module';
 import { BillingModule } from './billing/billing.module';
 import { PlatformModule } from './platform/platform.module';
 import { StorageModule } from './storage/storage.module';
+import { ReceiptsModule } from './receipts/receipts.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StorageModule } from './storage/storage.module';
     AuthModule,
     SettingsModule,
     StorageModule,
+    ReceiptsModule,
     PlansModule,
     MessagingModule,
     LotteryModule,

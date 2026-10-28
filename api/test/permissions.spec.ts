@@ -29,7 +29,7 @@ describe('Permisos por rol', () => {
       expect.arrayContaining(['raffles.delete', 'participants.export', 'settings.team', 'settings.billing']),
     );
     expect(BASE_ROLE_TEMPLATE.payment_verifier.permissions.sort()).toEqual(
-      ['participants.view_contact', 'payments.approve', 'payments.view', 'raffles.view'],
+      ['participants.view_contact', 'payments.approve', 'payments.view', 'raffles.view', 'receipts.issue'],
     );
     expect(BASE_ROLE_TEMPLATE.seller.permissions.sort()).toEqual(['raffles.view', 'sales.view_own']);
   });

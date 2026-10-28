@@ -18,6 +18,7 @@ const WRITE_PERMISSION: Record<SettingsSection, OrgPermission> = {
   payments: 'settings.brand',
   notifications: 'settings.brand',
   branding: 'settings.brand',
+  receipts: 'settings.brand',
   ranking: 'ranking.configure',
 };
 

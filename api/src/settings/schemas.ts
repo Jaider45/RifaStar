@@ -69,11 +69,23 @@ export const BrandingSettingsV1 = z.object({
   tiktokUrl: socialUrl(/(^|\.)tiktok\.com$/),
 });
 
+export const ReceiptsSettingsV1 = z.object({
+  issuerName: z.string().trim().max(120).default(''),
+  taxId: z.string().trim().max(40).default(''),
+  address: z.string().trim().max(180).default(''),
+  phone: z.string().trim().max(30).default(''),
+  email: z.union([z.string().trim().email().max(120), z.literal('')]).default(''),
+  conceptTemplate: z.string().trim().min(1).max(180).default('{cantidad} {concepto} para el sorteo {sorteo}'),
+  unitLabel: z.string().trim().min(1).max(32).default('números'),
+  footer: z.string().trim().max(300).default('Gracias por tu compra.'),
+});
+
 export const SETTINGS_SCHEMAS = {
   payments: PaymentsSettingsV1,
   ranking: RankingSettingsV1,
   notifications: NotificationsSettingsV1,
   branding: BrandingSettingsV1,
+  receipts: ReceiptsSettingsV1,
 } satisfies Record<SettingsSection, z.ZodTypeAny>;
 
 export const CURRENT_SETTINGS_VERSION: Record<SettingsSection, number> = {
@@ -81,6 +93,7 @@ export const CURRENT_SETTINGS_VERSION: Record<SettingsSection, number> = {
   ranking: 1,
   notifications: 1,
   branding: 1,
+  receipts: 1,
 };
 
 /** Migraciones entre versiones: `{ section: { fromVersion: (data) => dataSiguiente } }`. */
@@ -90,12 +103,14 @@ export type PaymentsSettings = z.infer<typeof PaymentsSettingsV1>;
 export type RankingSettings = z.infer<typeof RankingSettingsV1>;
 export type NotificationsSettings = z.infer<typeof NotificationsSettingsV1>;
 export type BrandingSettings = z.infer<typeof BrandingSettingsV1>;
+export type ReceiptsSettings = z.infer<typeof ReceiptsSettingsV1>;
 
 export interface SettingsBySection {
   payments: PaymentsSettings;
   ranking: RankingSettings;
   notifications: NotificationsSettings;
   branding: BrandingSettings;
+  receipts: ReceiptsSettings;
 }
 
 export const SETTINGS_SECTIONS = Object.keys(SETTINGS_SCHEMAS) as SettingsSection[];
