@@ -1,7 +1,7 @@
 import { OrgStatus, PlatformRole, TrialExpiryAction } from '@prisma/client';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { zEmail, zName, zOrgSlug, zPassword, zTimezone, zUuid } from '../common/zod';
+import { patchOf, zDateTime, zEmail, zName, zOrgSlug, zPassword, zTimezone, zUuid } from '../common/zod';
 import { ORG_PERMISSION_KEYS, type OrgPermission, PLATFORM_PERMISSION_KEYS, type PlatformPermission } from '../permissions/catalog';
 
 export class ListOrgsQuery extends createZodDto(
@@ -40,12 +40,12 @@ const PlanFields = z.object({
   featureCustomRoles: z.boolean(),
   featureCustomDomain: z.boolean(),
   featureWhiteLabel: z.boolean(),
-  externalPriceIds: z.record(z.string().max(120)).default({}),
+  externalPriceIds: z.record(z.string(), z.string().max(120)).default({}),
   highlighted: z.boolean().default(false),
   sortOrder: z.number().int().min(0).max(100).default(0),
 });
 export class CreatePlanDto extends createZodDto(PlanFields) {}
-export class UpdatePlanDto extends createZodDto(PlanFields.omit({ code: true }).partial()) {}
+export class UpdatePlanDto extends createZodDto(patchOf(PlanFields.omit({ code: true }))) {}
 
 export class TrialConfigDto extends createZodDto(
   z.object({
@@ -72,7 +72,7 @@ export class UpdatePlatformUserDto extends createZodDto(
 export class ChangePasswordDto extends createZodDto(z.object({ currentPassword: z.string().min(1).max(200), newPassword: zPassword })) {}
 
 export class ManualSubscriptionDto extends createZodDto(
-  z.object({ planCode: z.string().trim(), periodEnd: z.coerce.date().optional() }),
+  z.object({ planCode: z.string().trim(), periodEnd: zDateTime().optional() }),
 ) {}
 
 export class AuditQuery extends createZodDto(
@@ -82,8 +82,8 @@ export class AuditQuery extends createZodDto(
     actorId: zUuid.optional(),
     action: z.string().trim().max(80).optional(),
     entityType: z.string().trim().max(60).optional(),
-    from: z.coerce.date().optional(),
-    to: z.coerce.date().optional(),
+    from: zDateTime().optional(),
+    to: zDateTime().optional(),
     cursor: z.string().regex(/^\d+$/).optional(),
     limit: z.coerce.number().int().min(1).max(200).default(50),
   }),

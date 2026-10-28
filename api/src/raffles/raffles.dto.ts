@@ -1,12 +1,12 @@
 import { ExtraDigitsPosition, ExtraDigitsSource, NumberSelection, PrizeRule } from '@prisma/client';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { zHexColor, zUuid } from '../common/zod';
+import { patchOf, zDateTime, zHexColor, zUuid } from '../common/zod';
 import { type Digits, validExtraSources } from '../results/winner-rules';
 import { PageConfig } from './page-config';
 import { ANTICIPATED_RULES } from './prize-rules';
 
-const zDate = z.coerce.date({ invalid_type_error: 'La fecha no es válida.' });
+const zDate = zDateTime();
 /** Identificadores de LoteríaYa: `loteria-de-boyaca`, `antioquenita-tarde`. */
 const zDrawCode = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'El identificador de la lotería no es válido.').max(60);
 
@@ -93,7 +93,7 @@ export class CreateRaffleDto extends createZodDto(
   }),
 ) {}
 /** `prizes` opcional: al cambiar las cifras se mandan junto con los premios nuevos (un solo cambio). */
-export class UpdateRaffleDto extends createZodDto(RaffleFields.partial().extend({ prizes: z.array(PrizeInput).max(20).optional() })) {}
+export class UpdateRaffleDto extends createZodDto(patchOf(RaffleFields).extend({ prizes: z.array(PrizeInput).max(20).optional() })) {}
 export class ReplacePrizesDto extends createZodDto(z.object({ prizes: z.array(PrizeInput).max(20) })) {}
 export class DuplicateRaffleDto extends createZodDto(
   z.object({ title: z.string().trim().min(3).max(120).optional(), drawAt: zDate.optional() }),

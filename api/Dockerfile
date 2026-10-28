@@ -7,6 +7,8 @@ FROM base AS dev
 # argon2 compila su módulo nativo cuando no hay binario precompilado para esta versión de Node.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
+# deepmerge seguro (vendor/deepmerge, ver package.json › overrides): npm ci lo enlaza desde aquí.
+COPY vendor ./vendor
 RUN npm ci
 COPY . .
 RUN npx prisma generate
@@ -19,6 +21,7 @@ RUN npx nest build && npm prune --omit=dev
 FROM base
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/vendor ./vendor
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY package.json ./

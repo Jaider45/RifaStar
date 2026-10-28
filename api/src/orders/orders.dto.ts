@@ -1,6 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
-import { zCursorQuery, zUuid } from '../common/zod';
+import { zCursorQuery, zDateTime, zUuid } from '../common/zod';
 
 export const ReserveInput = z
   .object({
@@ -43,5 +43,5 @@ export class ListOrdersQuery extends createZodDto(
 ) {}
 
 export class SalesQuery extends createZodDto(
-  z.object({ raffleId: zUuid.optional(), from: z.coerce.date().optional(), to: z.coerce.date().optional() }),
+  z.object({ raffleId: zUuid.optional(), from: zDateTime().optional(), to: zDateTime().optional() }),
 ) {}

@@ -28,7 +28,7 @@ export const PageConfig = z
         ranking: z.boolean().default(true),
         social: z.boolean().default(true),
       })
-      .default({}),
+      .prefault({}),
   })
   .strict();
 

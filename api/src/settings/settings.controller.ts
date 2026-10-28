@@ -10,7 +10,7 @@ import type { OrgContext } from '../tenancy/org-context';
 import { SettingsService } from './settings.service';
 
 class UpdateSettingsDto extends createZodDto(
-  z.object({ revision: z.number().int().min(0), data: z.record(z.unknown()) }),
+  z.object({ revision: z.number().int().min(0), data: z.record(z.string(), z.unknown()) }),
 ) {}
 
 /** Permiso para escribir cada sección (§2.7 de la propuesta). */

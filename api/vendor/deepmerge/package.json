@@ -1,0 +1,8 @@
+{
+  "name": "deepmerge",
+  "version": "4.3.1-rifastar.1",
+  "description": "deepmerge 4.3.1 sin copiar la clave __proto__ (GHSA-gcqx-w48m-w2h4). Ver index.js.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT"
+}

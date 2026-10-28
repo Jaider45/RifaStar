@@ -22,13 +22,13 @@ export const RankingSettingsV1 = z.object({
       minRaffles: z.number().int().min(2).max(50).default(4),
       points: z.number().int().min(1).max(1000).default(5),
     })
-    .default({}),
+    .prefault({}),
   referralBonus: z
     .object({
       enabled: z.boolean().default(false),
       points: z.number().int().min(1).max(1000).default(3),
     })
-    .default({}),
+    .prefault({}),
   frequency: z.enum(['monthly', 'biweekly', 'weekly']).default('monthly'),
   /** Solo semanal: 1 = lunes … 7 = domingo (ISO). */
   weeklyResetDay: z.number().int().min(1).max(7).default(1),
