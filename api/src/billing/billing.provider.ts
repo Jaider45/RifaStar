@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { SubscriptionStatus } from '@prisma/client';
 import Stripe from 'stripe';
+import { AppError } from '../common/errors';
 import { env } from '../config/env';
 
 /** Evento de facturación normalizado (independiente del proveedor). */
@@ -146,5 +147,27 @@ export class FakeBillingProvider extends StripeBillingProvider {
 
   override async createPortal(customerId: string): Promise<{ url: string }> {
     return { url: `https://pagos.local/portal?customer=${customerId}` };
+  }
+}
+
+/**
+ * Planes cobrados con Wompi. No hay página externa de Wompi ni portal: el checkout es propio
+ * (tarjeta guardada y cobro mensual en `PlanBillingService`) y los eventos llegan a
+ * /v1/webhooks/wompi/platform. Esta clase solo ocupa el lugar de la abstracción de suscripciones.
+ */
+@Injectable()
+export class WompiBillingProvider extends BillingProvider {
+  readonly kind = 'wompi' as const;
+
+  async createCheckout(): Promise<{ url: string }> {
+    throw new AppError('USE_EMBEDDED_CHECKOUT', 409, 'Este plan se paga con tarjeta dentro de Rifa Star.');
+  }
+
+  async createPortal(): Promise<{ url: string }> {
+    throw new AppError('USE_EMBEDDED_CHECKOUT', 409, 'Cambia tu tarjeta o cancela el plan desde Ajustes › Plan.');
+  }
+
+  parseWebhook(): never {
+    throw new Error('Los eventos de Wompi llegan a /v1/webhooks/wompi/platform.');
   }
 }

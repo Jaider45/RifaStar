@@ -3880,6 +3880,592 @@
         ]
       }
     },
+    "/v1/payments/gateway": {
+      "get": {
+        "operationId": "GatewayController_get",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos en línea"
+        ]
+      },
+      "put": {
+        "operationId": "GatewayController_connect",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectGatewayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos en línea"
+        ]
+      },
+      "patch": {
+        "operationId": "GatewayController_update",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGatewayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos en línea"
+        ]
+      }
+    },
+    "/v1/payments/gateway/transactions": {
+      "get": {
+        "operationId": "GatewayController_transactions",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "declined",
+                "voided",
+                "error"
+              ]
+            }
+          },
+          {
+            "name": "refundRequired",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos en línea"
+        ]
+      }
+    },
+    "/v1/payments/gateway/transactions/{id}/refunded": {
+      "post": {
+        "operationId": "GatewayController_refunded",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundDoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Pagos en línea"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/checkout": {
+      "get": {
+        "operationId": "PublicCheckoutController_checkout",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/checkout/banks": {
+      "get": {
+        "operationId": "PublicCheckoutController_banks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/pay": {
+      "post": {
+        "operationId": "PublicCheckoutController_pay",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/public/orders/{id}/payment": {
+      "get": {
+        "operationId": "PublicCheckoutController_payment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Order-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Público"
+        ]
+      }
+    },
+    "/v1/billing/card-checkout": {
+      "get": {
+        "operationId": "PlanBillingController_config",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planCode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 40,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/subscribe": {
+      "post": {
+        "operationId": "PlanBillingController_subscribe",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/subscribe/status": {
+      "get": {
+        "operationId": "PlanBillingController_status",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/card": {
+      "post": {
+        "operationId": "PlanBillingController_card",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeCardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/cancel": {
+      "post": {
+        "operationId": "PlanBillingController_cancel",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
+    "/v1/billing/resume": {
+      "post": {
+        "operationId": "PlanBillingController_resume",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organización activa",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Plan y facturación"
+        ]
+      }
+    },
     "/v1/billing": {
       "get": {
         "operationId": "BillingController_overview",
@@ -6572,6 +7158,235 @@
         "required": [
           "phone",
           "code"
+        ]
+      },
+      "ConnectGatewayDto": {
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "privateKey": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "integritySecret": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "eventsSecret": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "methods": {
+            "default": [
+              "CARD",
+              "NEQUI",
+              "PSE",
+              "BANCOLOMBIA_TRANSFER"
+            ],
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CARD",
+                "NEQUI",
+                "PSE",
+                "BANCOLOMBIA_TRANSFER"
+              ]
+            }
+          }
+        },
+        "required": [
+          "publicKey",
+          "privateKey",
+          "integritySecret",
+          "eventsSecret"
+        ]
+      },
+      "UpdateGatewayDto": {
+        "type": "object",
+        "properties": {
+          "methods": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CARD",
+                "NEQUI",
+                "PSE",
+                "BANCOLOMBIA_TRANSFER"
+              ]
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RefundDoneDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "note"
+        ]
+      },
+      "PayOrderDto": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "CARD",
+              "NEQUI",
+              "PSE",
+              "BANCOLOMBIA_TRANSFER"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "acceptTerms": {
+            "type": "boolean"
+          },
+          "acceptPersonalData": {
+            "type": "boolean"
+          },
+          "cardToken": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "installments": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 36
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^(\\+?57)?\\s?3\\d{9}$"
+          },
+          "pse": {
+            "type": "object",
+            "properties": {
+              "userType": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "enum": [
+                      0
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      1
+                    ]
+                  }
+                ]
+              },
+              "legalIdType": {
+                "type": "string",
+                "enum": [
+                  "CC",
+                  "CE",
+                  "NIT",
+                  "TI",
+                  "PP",
+                  "IDC",
+                  "CEL",
+                  "RC",
+                  "DE"
+                ]
+              },
+              "legalId": {
+                "type": "string",
+                "pattern": "^\\d{5,15}$"
+              },
+              "bankCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10
+              }
+            },
+            "required": [
+              "userType",
+              "legalIdType",
+              "legalId",
+              "bankCode"
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "email",
+          "acceptTerms",
+          "acceptPersonalData"
+        ]
+      },
+      "SubscribePlanDto": {
+        "type": "object",
+        "properties": {
+          "planCode": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "cardToken": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "acceptTerms": {
+            "type": "boolean"
+          },
+          "acceptPersonalData": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "planCode",
+          "cardToken",
+          "acceptTerms",
+          "acceptPersonalData"
+        ]
+      },
+      "ChangeCardDto": {
+        "type": "object",
+        "properties": {
+          "cardToken": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 200
+          },
+          "acceptTerms": {
+            "type": "boolean"
+          },
+          "acceptPersonalData": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cardToken",
+          "acceptTerms",
+          "acceptPersonalData"
         ]
       },
       "CheckoutDto": {

@@ -6,7 +6,7 @@ import type { Tx } from '../database/database.service';
  * con un `tenantTx` respetan RLS; los jobs las llaman con el cliente de sistema.
  */
 
-/** Vence órdenes `reserved` sin comprobante y libera sus números. Idempotente. */
+/** Vence órdenes `reserved` sin comprobante ni pago en línea en curso y libera sus números. Idempotente. */
 export async function expireReservedOrders(
   tx: Tx,
   opts: { raffleId?: string; onlyDue: boolean; batchSize?: number },
@@ -18,6 +18,11 @@ export async function expireReservedOrders(
     WITH due AS (
       SELECT id FROM orders
        WHERE status = 'reserved' AND receipt_key IS NULL ${raffleFilter} ${dueFilter}
+         -- Con un pago en línea en curso no se vence: PSE puede tardar. Tope de 60 minutos.
+         AND NOT EXISTS (
+           SELECT 1 FROM gateway_payments gp
+            WHERE gp.order_id = orders.id AND gp.status = 'pending' AND gp.created_at > now() - interval '60 minutes'
+         )
        ORDER BY reserved_until
        LIMIT ${limit}
        FOR UPDATE SKIP LOCKED

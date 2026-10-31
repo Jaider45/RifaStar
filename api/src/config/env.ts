@@ -58,9 +58,26 @@ const EnvSchema = z.object({
   /** Cabecera con la firma. Confírmala con la especificación que envía LoteríaYa por correo. */
   LOTERIAYA_SIGNATURE_HEADER: z.string().default('x-loteriaya-signature'),
 
-  BILLING_DRIVER: z.enum(['stripe', 'fake']).default('fake'),
+  /** Pasarela de los planes de Rifa Star. «wompi» usa el checkout propio con WOMPI_* de abajo. */
+  BILLING_DRIVER: z.enum(['stripe', 'wompi', 'fake']).default('fake'),
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),
+
+  /**
+   * Wompi (pagos en línea con checkout propio). «fake» simula la pasarela en desarrollo y tests:
+   * las tarjetas 4242… se aprueban y 4111… se rechazan, como en el sandbox. En producción se
+   * ignora: el simulado aprobaría pagos que nadie hizo.
+   */
+  WOMPI_DRIVER: z.enum(['wompi', 'fake']).default('fake'),
+  WOMPI_SANDBOX_URL: z.string().url().default('https://sandbox.wompi.co/v1'),
+  WOMPI_PRODUCTION_URL: z.string().url().default('https://production.wompi.co/v1'),
+  /** Cuenta Wompi de Rifa Star: cobra los planes. Las boletas usan la cuenta de cada organización. */
+  WOMPI_PUBLIC_KEY: z.string().default(''),
+  WOMPI_PRIVATE_KEY: z.string().default(''),
+  WOMPI_INTEGRITY_SECRET: z.string().default(''),
+  WOMPI_EVENTS_SECRET: z.string().default(''),
+  /** URL pública de la API (webhooks). Vacía = PUBLIC_BASE_URL, que reenvía /v1 a la API. */
+  API_PUBLIC_URL: z.string().default(''),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -117,8 +134,20 @@ export function productionProblems(e: Env): string[] {
   );
   if (e.LOTTERY_DRIVER === 'loteriaya') need(Boolean(e.LOTERIAYA_API_KEY), 'LOTTERY_DRIVER=loteriaya necesita LOTERIAYA_API_KEY.');
   if (e.BILLING_DRIVER === 'stripe') need(Boolean(e.STRIPE_SECRET_KEY && e.STRIPE_WEBHOOK_SECRET), 'BILLING_DRIVER=stripe necesita STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET.');
+  if (e.BILLING_DRIVER === 'wompi') {
+    need(
+      Boolean(e.WOMPI_PUBLIC_KEY && e.WOMPI_PRIVATE_KEY && e.WOMPI_INTEGRITY_SECRET && e.WOMPI_EVENTS_SECRET),
+      'BILLING_DRIVER=wompi necesita WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY, WOMPI_INTEGRITY_SECRET y WOMPI_EVENTS_SECRET.',
+    );
+  }
   return p;
 }
+
+/** Wompi real o simulado. En producción siempre el real. */
+export const wompiDriver = (e: Env = env()): 'wompi' | 'fake' => (e.NODE_ENV === 'production' ? 'wompi' : e.WOMPI_DRIVER);
+
+/** Base pública de la API para las URLs de webhooks. */
+export const apiPublicUrl = (e: Env = env()): string => (e.API_PUBLIC_URL || e.PUBLIC_BASE_URL).replace(/\/+$/, '');
 
 /** Solo para tests: vuelve a leer process.env. */
 export function resetEnvCache(): void {

@@ -55,6 +55,31 @@ enum BillingProviderKind {
   manual
 }
 
+/// Pasarela de pagos en línea (checkout propio por delante).
+enum GatewayProvider {
+  wompi
+}
+
+/// Ambiente de la pasarela según el prefijo de las llaves (pub_test_ / pub_prod_).
+enum GatewayEnvironment {
+  sandbox
+  production
+}
+
+/// Qué paga la transacción: boletas de una orden o el plan de la organización.
+enum GatewayPaymentPurpose {
+  order
+  subscription
+}
+
+enum GatewayPaymentStatus {
+  pending
+  approved
+  declined
+  voided
+  error
+}
+
 enum InvoiceStatus {
   open
   paid
@@ -368,12 +393,19 @@ model Subscription {
   cancelAtPeriodEnd      Boolean             @default(false) @map("cancel_at_period_end")
   pastDueSince           DateTime?           @map("past_due_since") @db.Timestamptz
   canceledAt             DateTime?           @map("canceled_at") @db.Timestamptz
+  /// Wompi: fuente de pago (tarjeta) con la que se renueva cada periodo.
+  paymentSourceId        String?             @map("payment_source_id") @db.Uuid
+  /// Wompi: último intento de cobro de la renovación (se reintenta cada 24 h durante la gracia).
+  lastChargeAttemptAt    DateTime?           @map("last_charge_attempt_at") @db.Timestamptz
+  chargeAttempts         Int                 @default(0) @map("charge_attempts")
   createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime            @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  plan         Plan         @relation(fields: [planId], references: [id])
-  invoices     Invoice[]
+  organization  Organization          @relation(fields: [organizationId], references: [id])
+  plan          Plan                  @relation(fields: [planId], references: [id])
+  paymentSource BillingPaymentSource? @relation(fields: [paymentSourceId], references: [id])
+  invoices      Invoice[]
+  payments      GatewayPayment[]
 
   // SQL: UNIQUE (organization_id) WHERE status <> 'canceled'  → una vigente por org
   @@unique([provider, externalSubscriptionId])
@@ -422,6 +454,119 @@ model BillingEvent {
   @@map("billing_events")
 }
 
+/// Tarjeta guardada en la pasarela para renovar el plan (Wompi «payment source»).
+/// Solo se guardan datos para mostrar: el número de la tarjeta nunca llega a la API.
+model BillingPaymentSource {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  provider       BillingProviderKind
+  externalId     String              @map("external_id") // id de la fuente de pago en Wompi
+  brand          String?
+  lastFour       String?             @map("last_four")
+  expMonth       String?             @map("exp_month")
+  expYear        String?             @map("exp_year")
+  customerEmail  String              @map("customer_email")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  revokedAt      DateTime?           @map("revoked_at") @db.Timestamptz
+
+  organization  Organization     @relation(fields: [organizationId], references: [id])
+  subscriptions Subscription[]
+  payments      GatewayPayment[]
+
+  @@unique([provider, externalId])
+  @@index([organizationId])
+  @@map("billing_payment_sources")
+}
+
+// =============================================================================
+// PAGOS EN LÍNEA (checkout propio con Wompi por detrás)
+// =============================================================================
+
+/// Cuenta de pasarela de la organización para cobrar boletas: el dinero llega a la
+/// cuenta Wompi del organizador. Las llaves privadas se guardan cifradas (AES-256-GCM).
+model GatewayAccount {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  provider           GatewayProvider    @default(wompi)
+  environment        GatewayEnvironment
+  publicKey          String             @map("public_key")
+  privateKeyEnc      String             @map("private_key_enc")
+  integritySecretEnc String             @map("integrity_secret_enc")
+  eventsSecretEnc    String             @map("events_secret_enc")
+  /// Medios habilitados en el checkout: CARD, NEQUI, PSE, BANCOLOMBIA_TRANSFER.
+  methods            String[]
+  isActive           Boolean            @default(true) @map("is_active")
+  verifiedAt         DateTime?          @map("verified_at") @db.Timestamptz
+  lastEventAt        DateTime?          @map("last_event_at") @db.Timestamptz
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  payments     GatewayPayment[]
+
+  @@unique([organizationId, provider])
+  @@map("gateway_accounts")
+}
+
+/// Una transacción en la pasarela. El id es la referencia que se envía a Wompi.
+model GatewayPayment {
+  id                     String                @id @default(uuid()) @db.Uuid
+  organizationId         String                @map("organization_id") @db.Uuid
+  provider               GatewayProvider       @default(wompi)
+  environment            GatewayEnvironment
+  purpose                GatewayPaymentPurpose
+  /// Cuenta del organizador (boletas). NULL = cuenta de Rifa Star (planes).
+  gatewayAccountId       String?               @map("gateway_account_id") @db.Uuid
+  orderId                String?               @map("order_id") @db.Uuid
+  subscriptionId         String?               @map("subscription_id") @db.Uuid
+  planId                 String?               @map("plan_id") @db.Uuid
+  /// Planes: tarjeta guardada con la que se hizo el cobro.
+  billingPaymentSourceId String?               @map("billing_payment_source_id") @db.Uuid
+  externalId             String?               @map("external_id") // id de la transacción en Wompi
+  method                 String // CARD, NEQUI, PSE, BANCOLOMBIA_TRANSFER
+  amountCop              Int                   @map("amount_cop")
+  status                 GatewayPaymentStatus  @default(pending)
+  statusMessage          String?               @map("status_message")
+  /// PSE y Bancolombia: página del banco a la que se redirige al participante.
+  redirectUrl            String?               @map("redirect_url")
+  customerEmail          String                @map("customer_email")
+  /// Pago aprobado que no se pudo aplicar (números ya vendidos o sorteo cerrado): hay que reembolsar.
+  refundRequired         Boolean               @default(false) @map("refund_required")
+  lastCheckedAt          DateTime?             @map("last_checked_at") @db.Timestamptz
+  finalizedAt            DateTime?             @map("finalized_at") @db.Timestamptz
+  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+
+  organization         Organization          @relation(fields: [organizationId], references: [id])
+  gatewayAccount       GatewayAccount?       @relation(fields: [gatewayAccountId], references: [id])
+  order                Order?                @relation(fields: [orderId], references: [id])
+  subscription         Subscription?         @relation(fields: [subscriptionId], references: [id])
+  billingPaymentSource BillingPaymentSource? @relation(fields: [billingPaymentSourceId], references: [id])
+
+  @@unique([provider, externalId])
+  @@index([status, createdAt]) // conciliación de pendientes
+  @@index([orderId])
+  @@index([organizationId, purpose, createdAt])
+  @@map("gateway_payments")
+}
+
+/// Bandeja de eventos de la pasarela de las organizaciones (idempotencia y trazabilidad).
+model GatewayEvent {
+  id               String          @id @default(uuid()) @db.Uuid
+  provider         GatewayProvider @default(wompi)
+  gatewayAccountId String?         @map("gateway_account_id") @db.Uuid
+  externalEventId  String          @map("external_event_id") // checksum del evento
+  type             String
+  payload          Json
+  receivedAt       DateTime        @default(now()) @map("received_at") @db.Timestamptz
+  processedAt      DateTime?       @map("processed_at") @db.Timestamptz
+  lastError        String?         @map("last_error")
+
+  @@unique([provider, externalEventId])
+  @@index([gatewayAccountId, receivedAt])
+  @@map("gateway_events")
+}
+
 // =============================================================================
 // ORGANIZACIÓN
 // =============================================================================
@@ -458,6 +603,9 @@ model Organization {
   auditLogs       AuditLog[]
   supportSessions SupportSession[]
   incomeReceipts  IncomeReceipt[]
+  gatewayAccounts GatewayAccount[]
+  gatewayPayments GatewayPayment[]
+  billingSources  BillingPaymentSource[]
 
   @@index([status])
   @@map("organizations")
@@ -838,14 +986,15 @@ model Order {
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz
 
-  organization  Organization   @relation(fields: [organizationId], references: [id])
-  raffle        Raffle         @relation(fields: [raffleId], references: [id])
-  participant   Participant    @relation(fields: [participantId], references: [id])
-  seller        Member?        @relation("SellerOrders", fields: [sellerMemberId], references: [id])
+  organization  Organization     @relation(fields: [organizationId], references: [id])
+  raffle        Raffle           @relation(fields: [raffleId], references: [id])
+  participant   Participant      @relation(fields: [participantId], references: [id])
+  seller        Member?          @relation("SellerOrders", fields: [sellerMemberId], references: [id])
   heldNumbers   RaffleNumber[]
   tickets       Ticket[]
   incomeReceipt IncomeReceipt?
   pointsEvents  PointsEvent[]
+  payments      GatewayPayment[]
 
   @@unique([raffleId, idempotencyKey])
   @@index([organizationId, status, receiptUploadedAt]) // cola: más antiguos primero
