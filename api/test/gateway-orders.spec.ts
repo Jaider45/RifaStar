@@ -205,6 +205,24 @@ describe('Pagos en línea de boletas (Wompi detrás del checkout propio)', () =>
     expect((await orderRow(o.orderId)).status).toBe('approved');
   });
 
+  it('con un pago en línea en curso no se recibe comprobante de transferencia (no se cobra dos veces)', async () => {
+    const o = await newOrder();
+    await pay(o, { ...payBase, method: 'PSE', pse: { userType: 0, legalIdType: 'CC', legalId: '1234567890', bankCode: '1' } }).expect(200);
+    const receipt = (path: string, body: object) =>
+      ctx.http.post(`/v1/public/orders/${o.orderId}/${path}`).set('X-Order-Token', o.accessToken).set('X-Forwarded-For', ip()).send(body);
+
+    const upload = await receipt('receipt', { contentType: 'image/png', size: 1000 }).expect(409);
+    expect(upload.body.code).toBe('ONLINE_PAYMENT_IN_PROGRESS');
+    const confirm = await receipt('receipt/confirm', {}).expect(409);
+    expect(confirm.body.code).toBe('ONLINE_PAYMENT_IN_PROGRESS');
+    expect((await orderRow(o.orderId)).status).toBe('reserved');
+
+    // Cuando el pago en línea se aprueba, la orden queda pagada una sola vez y ya no admite comprobante.
+    expect((await status(o)).body.payment.status).toBe('approved');
+    expect((await orderRow(o.orderId)).status).toBe('approved');
+    expect((await receipt('receipt/confirm', {})).status).toBe(409);
+  });
+
   it('webhook: firma inválida → 401; evento repetido no se procesa dos veces; referencia desconocida se ignora', async () => {
     const o = await newOrder();
     await pay(o, { ...payBase, method: 'NEQUI', phone: '3991111111' }).expect(200);

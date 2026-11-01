@@ -13,11 +13,11 @@ import {
   PubFooter,
   PubHeader,
   PubLoading,
-  readOrder,
   RedesOrganizador,
   rememberLinkCodes,
   TextoConFormato,
   unidadDe,
+  useOrdenGuardada,
   type PublicRaffle,
 } from './shared';
 import './publico.css';
@@ -69,6 +69,8 @@ export default function Venta() {
   const [cantidad, setCantidad] = useState(1);
   const [foto, setFoto] = useState(0);
   const r = useCountdown(q.data ? new Date(q.data.raffle.drawAt).getTime() : Date.now());
+  // Compra hecha desde este navegador: el aviso depende de su estado real, no solo de que exista.
+  const compra = useOrdenGuardada(org, sorteo);
 
   const offset = grid.data?.offset ?? 0;
   const tamano = grid.data?.size ?? grid.data?.total ?? 0;
@@ -96,7 +98,6 @@ export default function Venta() {
   const vendidosPct = Math.round((progress.paid / raffle.totalNumbers) * 100);
   const fotos = [raffle.coverUrl, ...raffle.gallery].filter((u): u is string => Boolean(u));
   const ordenados = [...sel].sort((a, b) => a - b);
-  const pendiente = readOrder(org, sorteo);
   const faltanMinimo = Math.max(0, raffle.minPerOrder - sel.length);
 
   // Números visibles: grilla chica completa, o el bloque abierto (con buscador y páginas de 200).
@@ -156,10 +157,22 @@ export default function Venta() {
       </div>
 
       <main className="pub-main venta">
-        {pendiente && (
+        {compra?.status === 'reserved' && (
           <Link to={`/${org}/${sorteo}/pagar`} className="note note--alerta" style={{ textDecoration: 'none' }}>
             <Icon name="timer" strokeWidth={2.2} style={{ flex: 'none' }} />
             <span>Tienes {u.p} apartad{u.o}s en este sorteo. Toca aquí para terminar el pago.</span>
+          </Link>
+        )}
+        {compra?.status === 'pending_verification' && (
+          <Link to={`/${org}/${sorteo}/pagar`} className="note note--fondo" style={{ textDecoration: 'none' }}>
+            <Icon name="clock" strokeWidth={2.2} style={{ flex: 'none' }} />
+            <span>Estamos verificando el pago de tus {u.p} ({compra.numbers.join(', ')}). Toca aquí para ver el estado.</span>
+          </Link>
+        )}
+        {compra?.status === 'approved' && (
+          <Link to={`/${org}/mis-boletos`} className="note note--ok" style={{ textDecoration: 'none' }}>
+            <Icon name="check" strokeWidth={2.4} style={{ flex: 'none' }} />
+            <span>Tu compra está confirmada: {compra.numbers.join(', ')}. Toca aquí para ver tus boletos.</span>
           </Link>
         )}
 

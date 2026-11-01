@@ -4,7 +4,7 @@ import { request } from '@/api/client';
 import { Icon } from '@/components/Icon';
 import { ErrorNote } from '@/components/ui';
 import { cop } from '@/lib/format';
-import { CardError, tokenizeCard } from '@/lib/wompi';
+import { CardError, formatExpiry, tokenizeCard } from '@/lib/wompi';
 
 type Metodo = 'CARD' | 'NEQUI' | 'PSE' | 'BANCOLOMBIA_TRANSFER';
 
@@ -43,7 +43,18 @@ const DOCUMENTOS = [
  * salvo los contratos que Wompi exige aceptar. Con PSE y Bancolombia se pasa un momento por el banco
  * y se vuelve a esta misma página.
  */
-export function PagoEnLinea({ orderId, token, onApproved }: { orderId: string; token: string; onApproved: () => void }) {
+export function PagoEnLinea({
+  orderId,
+  token,
+  onApproved,
+  onEnCurso,
+}: {
+  orderId: string;
+  token: string;
+  onApproved: () => void;
+  /** Avisa si hay un pago en curso (esperando al banco o a la app), para no ofrecer otro medio a la vez. */
+  onEnCurso?: (enCurso: boolean) => void;
+}) {
   const headers = { 'X-Order-Token': token };
   const checkout = useQuery<Checkout>({
     queryKey: ['public-checkout', orderId],
@@ -94,6 +105,9 @@ export function PagoEnLinea({ orderId, token, onApproved }: { orderId: string; t
   useEffect(() => {
     if (pago?.status === 'approved') onApproved();
   }, [pago?.status, onApproved]);
+  useEffect(() => {
+    onEnCurso?.(enCurso);
+  }, [enCurso, onEnCurso]);
   // PSE / Bancolombia: cuando el banco entrega su página, se lleva al participante.
   useEffect(() => {
     if (pago?.status === 'pending' && pago.redirectUrl && !redirigido.current) {
@@ -199,7 +213,7 @@ export function PagoEnLinea({ orderId, token, onApproved }: { orderId: string; t
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <label className="rs-label" htmlFor="po-exp">Vence (MM/AA)</label>
-              <input id="po-exp" className="rs-in rs-mono fill-in" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA" maxLength={7} value={tarjeta.exp} onChange={(e) => setTarjeta({ ...tarjeta, exp: e.target.value.replace(/[^\d/]/g, '') })} required />
+              <input id="po-exp" className="rs-in rs-mono fill-in" inputMode="numeric" autoComplete="cc-exp" placeholder="MM/AA" maxLength={7} value={tarjeta.exp} onChange={(e) => setTarjeta({ ...tarjeta, exp: formatExpiry(e.target.value) })} required />
             </div>
             <div style={{ flex: 1 }}>
               <label className="rs-label" htmlFor="po-cvc">Código (CVC)</label>

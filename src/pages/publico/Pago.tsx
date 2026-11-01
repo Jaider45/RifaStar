@@ -106,7 +106,11 @@ export default function Pago() {
   }, [order.data, stored, hayNuevaSeleccion, org, sorteo]);
   const pagoAprobado = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ['public-order', stored?.orderId] });
+    // El sorteo (vendidos, números ocupados) también cambió: que su página no muestre datos viejos.
+    void qc.invalidateQueries({ queryKey: ['public'] });
   }, [qc, stored?.orderId]);
+  /** Con un pago en línea en curso no se ofrece la transferencia: serían dos pagos por lo mismo. */
+  const [enLineaEnCurso, setEnLineaEnCurso] = useState(false);
 
   if (raffle.isLoading || (stored && order.isLoading)) return <PubLoading />;
   if (raffle.error || !raffle.data) return <PubError error={raffle.error} />;
@@ -306,8 +310,8 @@ export default function Pago() {
         {enLinea && !manual && (
           <section className="stack" style={{ gap: 14 }}>
             <h2 className="h2 h2--sm">Paga {cop(o.totalCop)} en línea</h2>
-            <PagoEnLinea orderId={o.orderId} token={stored.accessToken} onApproved={pagoAprobado} />
-            {cuentas.length > 0 && (
+            <PagoEnLinea orderId={o.orderId} token={stored.accessToken} onApproved={pagoAprobado} onEnCurso={setEnLineaEnCurso} />
+            {cuentas.length > 0 && !enLineaEnCurso && (
               <button type="button" className="strong-link rs-btn rs-btn--fantasma rs-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setManual(true)}>
                 Prefiero pagar por transferencia y subir el comprobante
               </button>

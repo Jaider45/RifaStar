@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Node trae WebCrypto completo (el entorno jsdom no), igual que un navegador.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CardError, encryptJwe, luhnValid, normalizeExpiry, tokenizeCard, validateCard } from './wompi';
+import { CardError, encryptJwe, formatExpiry, luhnValid, normalizeExpiry, tokenizeCard, validateCard } from './wompi';
 
 const card = { number: '4242 4242 4242 4242', cvc: '123', expMonth: '12', expYear: '2099', holder: 'LAURA MARTINEZ' };
 const unb64 = (s: string) => Uint8Array.from(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
@@ -35,6 +35,17 @@ describe('validación de tarjeta', () => {
   it('fecha: acepta mes con o sin cero y año de 2 o 4 dígitos', () => {
     expect(normalizeExpiry('1', '2030')).toEqual({ month: '01', year: '30' });
     expect(normalizeExpiry('12', '30')).toEqual({ month: '12', year: '30' });
+  });
+
+  it('fecha: pone la barra sola mientras se escribe y respeta la que escribe la persona', () => {
+    expect(formatExpiry('12')).toBe('12');
+    expect(formatExpiry('123')).toBe('12/3');
+    expect(formatExpiry('1230')).toBe('12/30');
+    expect(formatExpiry('12/30')).toBe('12/30');
+    expect(formatExpiry('1/30')).toBe('1/30');
+    expect(formatExpiry('12/')).toBe('12/'); // al borrar el año no se pierde la barra de golpe
+    expect(formatExpiry('12/2030')).toBe('12/2030');
+    expect(formatExpiry('12a3b0')).toBe('12/30');
   });
 
   it('dice en español qué está mal', () => {

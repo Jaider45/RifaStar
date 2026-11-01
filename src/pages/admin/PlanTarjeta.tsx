@@ -5,7 +5,7 @@ import { Badge } from '@/components/Badge';
 import { ErrorNote, Loading, Modal, OkNote } from '@/components/ui';
 import { cop } from '@/lib/format';
 import { formatDay } from '@/lib/time';
-import { CardError, tokenizeCard } from '@/lib/wompi';
+import { CardError, formatExpiry, tokenizeCard } from '@/lib/wompi';
 
 interface CardConfig {
   environment: 'sandbox' | 'production';
@@ -59,7 +59,7 @@ function FormularioTarjeta({ cfg, id, onToken, onError }: { cfg: CardConfig; id:
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ flex: 1 }}>
           <label className="rs-label" htmlFor={`${id}-exp`}>Vence (MM/AA)</label>
-          <input id={`${id}-exp`} className="rs-in rs-mono" inputMode="numeric" autoComplete="cc-exp" maxLength={7} placeholder="MM/AA" value={t.exp} onChange={(e) => setT({ ...t, exp: e.target.value.replace(/[^\d/]/g, '') })} required />
+          <input id={`${id}-exp`} className="rs-in rs-mono" inputMode="numeric" autoComplete="cc-exp" maxLength={7} placeholder="MM/AA" value={t.exp} onChange={(e) => setT({ ...t, exp: formatExpiry(e.target.value) })} required />
         </div>
         <div style={{ flex: 1 }}>
           <label className="rs-label" htmlFor={`${id}-cvc`}>Código (CVC)</label>

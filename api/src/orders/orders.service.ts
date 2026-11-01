@@ -455,8 +455,25 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Con un pago en línea en curso (PSE o Bancolombia esperando al banco, Nequi esperando la app) no se
+   * recibe comprobante de transferencia: si ambos se completaran, el participante pagaría dos veces.
+   */
+  private async assertNoOnlinePayment(tx: Tx, orderId: string) {
+    const pending = await tx.gatewayPayment.findFirst({ where: { orderId, status: 'pending' }, select: { id: true } });
+    if (pending) {
+      throw Errors.conflict(
+        'ONLINE_PAYMENT_IN_PROGRESS',
+        'Tienes un pago en línea en curso para estos números. Espera a que termine antes de pagar por transferencia.',
+      );
+    }
+  }
+
   async receiptUpload(organizationId: string, orderId: string, contentType: string, size: number) {
-    await this.db.tenantTx(organizationId, async (tx) => this.assertCanSubmit(await this.findFull(tx, orderId)));
+    await this.db.tenantTx(organizationId, async (tx) => {
+      this.assertCanSubmit(await this.findFull(tx, orderId));
+      await this.assertNoOnlinePayment(tx, orderId);
+    });
     return this.uploads.presign(this.receiptPolicy(organizationId, orderId), contentType, size);
   }
 
@@ -472,6 +489,7 @@ export class OrdersService {
       if (!(await lockOrder(tx, orderId))) throw Errors.notFound('la orden');
       const o = await this.findFull(tx, orderId);
       this.assertCanSubmit(o);
+      await this.assertNoOnlinePayment(tx, orderId);
       if (!file) {
         const payments = await this.settings.read(tx, 'payments');
         if (payments.data.requireReceipt) {

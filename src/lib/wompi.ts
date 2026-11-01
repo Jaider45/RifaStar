@@ -42,6 +42,17 @@ export function normalizeExpiry(expMonth: string, expYear: string): { month: str
   return { month: m, year: y.length >= 4 ? y.slice(-2) : y.padStart(2, '0') };
 }
 
+/**
+ * Formatea el vencimiento mientras se escribe: «1230» → «12/30». Si la persona escribe la barra, se
+ * respeta («1/30» sigue siendo enero), y al borrar no se vuelve a poner.
+ */
+export function formatExpiry(raw: string): string {
+  const [month = '', year] = raw.split('/');
+  if (year !== undefined) return `${digits(month).slice(0, 2)}/${digits(year).slice(0, 4)}`;
+  const d = digits(raw).slice(0, 4);
+  return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+}
+
 /** Mensaje en español con lo primero que está mal, o null si la tarjeta se ve bien. */
 export function validateCard(card: CardInput, now = new Date()): string | null {
   const number = digits(card.number);

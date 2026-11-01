@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 import { Logo } from '@/components/Logo';
 import { PubFrame } from '@/components/PubFrame';
 import { ErrorNote, Foto, Loading } from '@/components/ui';
+import { useQuery } from '@tanstack/react-query';
+import { ApiError, request } from '@/api/client';
 import type { PageConfig } from '@/api/types';
 import { waLink } from '@/lib/phone';
 
@@ -167,6 +169,33 @@ export const readOrder = (org: string, sorteo: string): StoredOrder | null => {
 };
 export const saveOrder = (org: string, sorteo: string, o: StoredOrder) => localStorage.setItem(orderKey(org, sorteo), JSON.stringify(o));
 export const clearOrder = (org: string, sorteo: string) => localStorage.removeItem(orderKey(org, sorteo));
+/** Estados en los que la orden guardada todavía le sirve al participante (pagar, esperar o ver sus boletos). */
+const VIGENTES = ['reserved', 'pending_verification', 'approved'];
+
+/**
+ * Estado real de la orden guardada en este navegador (la misma consulta que usa la página de pago).
+ * Si la orden venció, fue rechazada o ya no existe, se olvida. Mientras carga devuelve null: así el
+ * aviso de la página del sorteo no anuncia «números apartados» de una compra que ya se pagó.
+ */
+export function useOrdenGuardada(org: string, sorteo: string): { status: string; numbers: string[] } | null {
+  const [stored, setStored] = useState(() => readOrder(org, sorteo));
+  const q = useQuery<{ status: string; numbers: string[] }>({
+    queryKey: ['public-order', stored?.orderId],
+    queryFn: () => request(`/v1/public/orders/${stored!.orderId}`, { headers: { 'X-Order-Token': stored!.accessToken } }),
+    enabled: Boolean(stored),
+    retry: false,
+  });
+  // Solo se olvida ante una respuesta clara del servidor; un corte de red no debe borrar la compra.
+  const noExiste = q.error instanceof ApiError && [401, 403, 404].includes(q.error.status);
+  const cerrada = Boolean(q.data && !VIGENTES.includes(q.data.status));
+  useEffect(() => {
+    if (stored && (noExiste || cerrada)) {
+      clearOrder(org, sorteo);
+      setStored(null);
+    }
+  }, [stored, noExiste, cerrada, org, sorteo]);
+  return stored && q.data && !cerrada ? q.data : null;
+}
 
 /** Código de vendedor (?v=) y de referido (?ref=) del enlace, guardados para la compra. */
 export function rememberLinkCodes(org: string, search: URLSearchParams) {
