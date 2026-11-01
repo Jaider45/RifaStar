@@ -33,6 +33,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { MyTicketsModule } from './my-tickets/my-tickets.module';
 import { PlansModule } from './plans/plans.module';
 import { BillingModule } from './billing/billing.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PlatformModule } from './platform/platform.module';
 import { StorageModule } from './storage/storage.module';
 import { ReceiptsModule } from './receipts/receipts.module';
@@ -63,6 +64,7 @@ import { ReceiptsModule } from './receipts/receipts.module';
     RankingModule,
     PublicModule,
     MyTicketsModule,
+    PaymentsModule,
     BillingModule,
     PlatformModule,
     DashboardModule,

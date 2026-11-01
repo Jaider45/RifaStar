@@ -25,6 +25,9 @@ export const TENANT_MODELS: ReadonlySet<Prisma.ModelName> = new Set<Prisma.Model
   'AuditLog',
   'MessageLog',
   'IncomeReceipt',
+  'GatewayAccount',
+  'GatewayPayment',
+  'BillingPaymentSource',
 ]);
 
 const WHERE_OPS = new Set([

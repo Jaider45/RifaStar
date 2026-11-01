@@ -9,6 +9,8 @@ export const JOB = {
   rankingRollover: 'ranking-rollover',
   dailyDigest: 'daily-digest',
   billingSync: 'billing-sync',
+  gatewayReconcile: 'gateway-reconcile',
+  planRenewals: 'plan-renewals',
   sendWhatsapp: 'send-whatsapp',
   lotteryPoll: 'lottery-poll',
   deliveryReminder: 'delivery-reminder',

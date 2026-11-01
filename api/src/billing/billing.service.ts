@@ -12,6 +12,8 @@ import { BillingProvider, type BillingWebhookEvent } from './billing.provider';
 
 /** Motivo con el que billing-sync suspende; solo esas suspensiones se levantan solas al pagar. */
 export const BILLING_SUSPENSION_REASON = 'Pago vencido';
+/** Motivo cuando se cancela el plan. También se levanta sola al volver a pagar. */
+export const CANCELED_SUSPENSION_REASON = 'Suscripción cancelada';
 
 const system = <T>(requestId: string, fn: () => Promise<T>) =>
   requestContext.run({ requestId, actor: { type: 'system', id: null } }, fn);
@@ -32,14 +34,27 @@ export class BillingService {
   // Panel del organizador
   // ---------------------------------------------------------------------------
 
+  /**
+   * Stripe lleva a su página; con Wompi (o el simulado de desarrollo) la tarjeta se captura en el
+   * checkout propio de Rifa Star.
+   */
+  private embeddedCheckout(): boolean {
+    return env().BILLING_DRIVER !== 'stripe';
+  }
+
   async overview(org: OrgContext) {
     const sub = await this.plans.subscriptionOf(org.id);
     const plan = await this.plans.planOf(org.id);
     const usage = await this.db.tenantTx(org.id, (tx) => this.plans.usage(tx, org.id));
     const whatsapp = await this.messages.remainingQuota(org.id);
     const invoices = await this.db.tenantTx(org.id, (tx) => tx.invoice.findMany({ orderBy: { createdAt: 'desc' }, take: 12 }));
+    const card = sub?.paymentSourceId
+      ? await this.db.tenantTx(org.id, (tx) => tx.billingPaymentSource.findFirst({ where: { id: sub.paymentSourceId! } }))
+      : null;
     return {
       status: org.status,
+      /** «embedded»: tarjeta en el checkout propio (Wompi). «redirect»: página de la pasarela (Stripe). */
+      checkoutMode: this.embeddedCheckout() ? ('embedded' as const) : ('redirect' as const),
       plan: { code: plan.code, name: plan.name, monthlyPriceCop: plan.monthlyPriceCop },
       subscription: sub && {
         status: sub.status,
@@ -48,6 +63,7 @@ export class BillingService {
         currentPeriodEnd: sub.currentPeriodEnd,
         cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
         pastDueSince: sub.pastDueSince,
+        card: card && { brand: card.brand, lastFour: card.lastFour, expMonth: card.expMonth, expYear: card.expYear },
       },
       usage: { ...usage, whatsappMessages: { used: whatsapp.used, limit: whatsapp.limit, period: whatsapp.period } },
       invoices: invoices.map((i) => ({ id: i.id, amountCop: i.amountCop, status: i.status, paidAt: i.paidAt, attemptedAt: i.attemptedAt, failureReason: i.failureReason })),
@@ -61,7 +77,8 @@ export class BillingService {
       name: p.name,
       monthlyPriceCop: p.monthlyPriceCop,
       highlighted: p.highlighted,
-      purchasable: Boolean((p.externalPriceIds as Record<string, string>)[this.provider.kind]),
+      // Wompi cobra con tarjeta dentro de Rifa Star: no necesita un precio creado en la pasarela.
+      purchasable: this.embeddedCheckout() ? p.monthlyPriceCop > 0 : Boolean((p.externalPriceIds as Record<string, string>)[this.provider.kind]),
       limits: { activeRaffles: p.maxActiveRaffles, members: p.maxMembers, whatsappMessages: p.monthlyWhatsappMessages },
       features: {
         ranking: p.featureRanking,
@@ -75,6 +92,7 @@ export class BillingService {
   }
 
   async checkout(org: OrgContext, planCode: string, userEmail: string) {
+    if (this.provider.kind === 'wompi') throw new AppError('USE_EMBEDDED_CHECKOUT', 409, 'Este plan se paga con tarjeta dentro de Rifa Star.');
     const plan = await this.db.system.plan.findUnique({ where: { code: planCode } });
     if (!plan || plan.archivedAt) throw Errors.validation({ field: 'planCode' }, 'Ese plan no existe.');
     const priceId = (plan.externalPriceIds as Record<string, string>)[this.provider.kind];
@@ -91,6 +109,7 @@ export class BillingService {
   }
 
   async portal(org: OrgContext) {
+    if (this.provider.kind === 'wompi') throw new AppError('USE_EMBEDDED_CHECKOUT', 409, 'Cambia tu tarjeta o cancela el plan desde Ajustes › Plan.');
     const sub = await this.plans.subscriptionOf(org.id);
     if (!sub?.externalCustomerId || sub.provider !== this.provider.kind) {
       throw Errors.conflict('NO_BILLING_ACCOUNT', 'Aún no tienes una suscripción con tarjeta. Elige un plan primero.');
@@ -213,11 +232,13 @@ export class BillingService {
   }
 
   /** Estado de la org según la suscripción (P7). Una suspensión manual no se levanta sola. */
-  private async syncOrgStatus(tx: Prisma.TransactionClient, organizationId: string, subStatus: string) {
+  async syncOrgStatus(tx: Prisma.TransactionClient, organizationId: string, subStatus: string) {
     const org = await tx.organization.findUniqueOrThrow({ where: { id: organizationId } });
     let next = org.status;
     if (subStatus === 'active' || subStatus === 'trialing') {
-      if (org.status !== 'suspended' || org.suspensionReason === BILLING_SUSPENSION_REASON) next = subStatus === 'active' ? 'active' : 'trial';
+      // Solo se levantan las suspensiones por facturación; una suspensión manual de la plataforma no.
+      const billingSuspension = org.suspensionReason === BILLING_SUSPENSION_REASON || org.suspensionReason === CANCELED_SUSPENSION_REASON;
+      if (org.status !== 'suspended' || billingSuspension) next = subStatus === 'active' ? 'active' : 'trial';
     } else if (subStatus === 'past_due') {
       if (org.status === 'active' || org.status === 'trial') next = 'past_due';
     } else if (subStatus === 'canceled') {
@@ -229,7 +250,7 @@ export class BillingService {
       data: {
         status: next,
         ...(next === 'suspended'
-          ? { suspendedAt: new Date(), suspensionReason: subStatus === 'canceled' ? 'Suscripción cancelada' : BILLING_SUSPENSION_REASON }
+          ? { suspendedAt: new Date(), suspensionReason: subStatus === 'canceled' ? CANCELED_SUSPENSION_REASON : BILLING_SUSPENSION_REASON }
           : { suspendedAt: null, suspensionReason: null }),
       },
     });

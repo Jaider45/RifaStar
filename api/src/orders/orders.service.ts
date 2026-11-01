@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Order, type Participant, Prisma, type Raffle, type Ticket } from '@prisma/client';
 import { Errors } from '../common/errors';
+import { requestContext } from '../common/request-context';
 import { formatNumber, ticketCode } from '../common/format';
 import { AuditService } from '../audit/audit.service';
 import { DatabaseService, type Tx } from '../database/database.service';
@@ -24,6 +25,9 @@ type OrderFull = Order & {
 };
 
 const invalidState = (message = 'Esta orden ya fue procesada.') => Errors.conflict('ORDER_INVALID_STATE', message);
+
+/** Estados del sorteo en los que todavía se aprueban pagos. */
+const APPROVABLE_RAFFLE: Raffle['status'][] = ['active', 'sold_out', 'closed'];
 
 const STATUS_LABELS: Record<Order['status'], string> = {
   reserved: 'Apartado',
@@ -170,49 +174,121 @@ export class OrdersService {
       const o = await this.findFull(tx, id);
       if (o.status !== 'pending_verification' && o.status !== 'reserved') throw invalidState();
       this.assertNotOwnSale(org, o);
-      if (!['active', 'sold_out', 'closed'].includes(o.raffle.status)) {
-        throw Errors.conflict('RAFFLE_NOT_APPROVABLE', 'El sorteo ya se jugó o fue cancelado: no se pueden aprobar pagos.');
-      }
-      const now = new Date();
-      const paid = await tx.$executeRaw`
-        UPDATE raffle_numbers SET status = 'paid', paid_at = ${now}, reserved_until = NULL, updated_at = now()
-         WHERE order_id = ${id}::uuid AND status IN ('reserved', 'pending_verification')`;
-      if (paid !== o.numbers.length) {
-        throw Errors.conflict('ORDER_NUMBERS_MISMATCH', 'Los números de esta orden cambiaron. Recarga e inténtalo de nuevo.');
-      }
-      await tx.order.update({ where: { id }, data: { status: 'approved', verifiedById: org.memberId, verifiedAt: now } });
-      await tx.ticket.createMany({
-        data: o.numbers.map((n) => ({
-          organizationId: org.id,
-          raffleId: o.raffleId,
-          orderId: id,
-          participantId: o.participantId,
-          number: n,
-          code: ticketCode(o.raffle.sequence, n, o.raffle.digits),
-          issuedAt: now,
-        })),
-      });
-      const [raffle] = await tx.$queryRaw<{ paid_count: number; total_numbers: number; status: string }[]>`
-        UPDATE raffles SET paid_count = paid_count + ${paid}, held_count = held_count - ${paid}, updated_at = now()
-         WHERE id = ${o.raffleId}::uuid
-        RETURNING paid_count, total_numbers, status`;
-      if (raffle.paid_count === raffle.total_numbers && raffle.status === 'active') {
-        await tx.raffle.update({ where: { id: o.raffleId }, data: { status: 'sold_out' } });
-        await this.audit.record(tx, { action: 'raffle.sold_out', entityType: 'raffle', entityId: o.raffleId, after: { status: 'sold_out' } });
-      }
-      event = this.event('approved', org, o, now);
-      await this.hooks.runInTransaction(tx, event);
-      await this.audit.record(tx, {
-        action: 'order.approve',
-        entityType: 'order',
-        entityId: id,
-        before: { status: o.status },
-        after: { status: 'approved', numbers: o.numbers, totalCop: o.totalCop },
-      });
+      event = await this.approveLocked(tx, org, o);
       return this.findFull(tx, id);
     });
     await this.hooks.runAfterCommit(event);
     return this.present(org, order);
+  }
+
+  /**
+   * Aprobación automática de un pago en línea aprobado por la pasarela. Idempotente. Si el pago
+   * llegó cuando la orden ya había vencido, vuelve a tomar los mismos números si siguen libres;
+   * si no se puede aplicar, lo dice (el pago queda marcado para reembolso).
+   */
+  async approveFromGateway(organizationId: string, orderId: string, paymentId: string): Promise<{ applied: boolean; reason?: string }> {
+    const org = await this.systemOrg(organizationId);
+    let event: OrderEvent | null = null;
+    // Webhooks y jobs no tienen sesión: la auditoría y el aislamiento toman la organización del contexto.
+    const context = {
+      requestId: requestContext.get()?.requestId ?? `gateway-${paymentId}`,
+      actor: { type: 'system' as const, id: null, label: 'Pasarela de pagos (Wompi)' },
+      organizationId,
+    };
+    const result = await requestContext.run(context, () => this.db.tenantTx(organizationId, async (tx): Promise<{ applied: boolean; reason?: string }> => {
+      if (!(await lockOrder(tx, orderId))) return { applied: false, reason: 'La orden no existe.' };
+      const o = await this.findFull(tx, orderId);
+      if (o.status === 'approved') return { applied: true };
+      if (!APPROVABLE_RAFFLE.includes(o.raffle.status)) {
+        return { applied: false, reason: 'El sorteo ya se jugó o fue cancelado cuando se aprobó el pago.' };
+      }
+      if (o.status === 'expired' || o.status === 'released' || o.status === 'rejected') {
+        const claimed = await tx.$queryRaw<{ number: number }[]>`
+          INSERT INTO raffle_numbers (raffle_id, number, organization_id, status, order_id, updated_at)
+          SELECT ${o.raffleId}::uuid, n, ${organizationId}::uuid, 'reserved', ${orderId}::uuid, now()
+            FROM unnest(${[...o.numbers].sort((a, b) => a - b)}::int[]) AS n
+           ORDER BY n
+          ON CONFLICT (raffle_id, number) DO NOTHING
+          RETURNING number`;
+        if (claimed.length !== o.numbers.length) {
+          if (claimed.length > 0) {
+            await tx.$executeRaw`DELETE FROM raffle_numbers WHERE order_id = ${orderId}::uuid AND status = 'reserved'`;
+          }
+          return { applied: false, reason: 'El pago llegó después de que se liberaron los números y otra persona compró alguno.' };
+        }
+        await tx.$executeRaw`UPDATE raffles SET held_count = held_count + ${claimed.length}, updated_at = now() WHERE id = ${o.raffleId}::uuid`;
+        await tx.order.update({ where: { id: orderId }, data: { status: 'reserved' } });
+      }
+      event = await this.approveLocked(tx, org, o, { via: 'wompi', paymentId });
+      return { applied: true };
+    }));
+    if (event) await this.hooks.runAfterCommit(event);
+    return result;
+  }
+
+  /** Contexto de organización para acciones del sistema (sin miembro ni permisos). */
+  private async systemOrg(organizationId: string): Promise<OrgContext> {
+    const o = await this.db.tenantTx(organizationId, (tx) => tx.organization.findUniqueOrThrow({ where: { id: organizationId } }));
+    return {
+      id: o.id,
+      slug: o.slug,
+      name: o.name,
+      status: o.status,
+      timezone: o.timezone,
+      memberId: null,
+      roleKey: null,
+      permissions: new Set(),
+      readOnly: false,
+      supportSessionId: null,
+    };
+  }
+
+  /**
+   * Regla 3 sobre una orden ya bloqueada: números → paid, tickets, contadores, puntos (hook) y
+   * auditoría. El WhatsApp lo encola quien llama, después del commit.
+   */
+  private async approveLocked(tx: Tx, org: OrgContext, o: OrderFull, via?: { via: 'wompi'; paymentId: string }): Promise<OrderEvent> {
+    const id = o.id;
+    if (!APPROVABLE_RAFFLE.includes(o.raffle.status)) {
+      throw Errors.conflict('RAFFLE_NOT_APPROVABLE', 'El sorteo ya se jugó o fue cancelado: no se pueden aprobar pagos.');
+    }
+    const now = new Date();
+    const paid = await tx.$executeRaw`
+      UPDATE raffle_numbers SET status = 'paid', paid_at = ${now}, reserved_until = NULL, updated_at = now()
+       WHERE order_id = ${id}::uuid AND status IN ('reserved', 'pending_verification')`;
+    if (paid !== o.numbers.length) {
+      throw Errors.conflict('ORDER_NUMBERS_MISMATCH', 'Los números de esta orden cambiaron. Recarga e inténtalo de nuevo.');
+    }
+    await tx.order.update({ where: { id }, data: { status: 'approved', verifiedById: org.memberId, verifiedAt: now } });
+    await tx.ticket.createMany({
+      data: o.numbers.map((n) => ({
+        organizationId: org.id,
+        raffleId: o.raffleId,
+        orderId: id,
+        participantId: o.participantId,
+        number: n,
+        code: ticketCode(o.raffle.sequence, n, o.raffle.digits),
+        issuedAt: now,
+      })),
+    });
+    const [raffle] = await tx.$queryRaw<{ paid_count: number; total_numbers: number; status: string }[]>`
+      UPDATE raffles SET paid_count = paid_count + ${paid}, held_count = held_count - ${paid}, updated_at = now()
+       WHERE id = ${o.raffleId}::uuid
+      RETURNING paid_count, total_numbers, status`;
+    if (raffle.paid_count === raffle.total_numbers && raffle.status === 'active') {
+      await tx.raffle.update({ where: { id: o.raffleId }, data: { status: 'sold_out' } });
+      await this.audit.record(tx, { action: 'raffle.sold_out', entityType: 'raffle', entityId: o.raffleId, after: { status: 'sold_out' } });
+    }
+    const event = this.event('approved', org, o, now);
+    await this.hooks.runInTransaction(tx, event);
+    await this.audit.record(tx, {
+      action: 'order.approve',
+      entityType: 'order',
+      entityId: id,
+      before: { status: o.status },
+      after: { status: 'approved', numbers: o.numbers, totalCop: o.totalCop, ...via },
+    });
+    return event;
   }
 
   /** Rechazo: libera los números y se notifica con el motivo. */
@@ -338,6 +414,7 @@ export class OrdersService {
     return this.db.tenantTx(organizationId, async (tx) => {
       const o = await this.findFull(tx, orderId);
       const payments = await this.settings.read(tx, 'payments');
+      const gateway = await tx.gatewayAccount.findFirst({ where: { provider: 'wompi', isActive: true, verifiedAt: { not: null } }, select: { id: true } });
       const accounts = await tx.paymentAccount.findMany({
         where: { isActive: true, raffles: { some: { raffleId: o.raffleId } } },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -355,6 +432,8 @@ export class OrdersService {
         tickets: o.tickets.filter((t) => t.status === 'valid').map((t) => ({ code: t.code, number: formatNumber(t.number, o.raffle.digits) })),
         raffle: { slug: o.raffle.slug, title: o.raffle.title, drawAt: o.raffle.drawAt, lottery: o.raffle.lottery },
         paymentAccounts: accounts.map(presentPaymentAccount),
+        // El checkout propio con Wompi: el detalle (llaves públicas, contratos) lo da /checkout.
+        online: { enabled: Boolean(gateway) },
         serverTime: new Date(),
       };
     });
@@ -376,8 +455,25 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Con un pago en línea en curso (PSE o Bancolombia esperando al banco, Nequi esperando la app) no se
+   * recibe comprobante de transferencia: si ambos se completaran, el participante pagaría dos veces.
+   */
+  private async assertNoOnlinePayment(tx: Tx, orderId: string) {
+    const pending = await tx.gatewayPayment.findFirst({ where: { orderId, status: 'pending' }, select: { id: true } });
+    if (pending) {
+      throw Errors.conflict(
+        'ONLINE_PAYMENT_IN_PROGRESS',
+        'Tienes un pago en línea en curso para estos números. Espera a que termine antes de pagar por transferencia.',
+      );
+    }
+  }
+
   async receiptUpload(organizationId: string, orderId: string, contentType: string, size: number) {
-    await this.db.tenantTx(organizationId, async (tx) => this.assertCanSubmit(await this.findFull(tx, orderId)));
+    await this.db.tenantTx(organizationId, async (tx) => {
+      this.assertCanSubmit(await this.findFull(tx, orderId));
+      await this.assertNoOnlinePayment(tx, orderId);
+    });
     return this.uploads.presign(this.receiptPolicy(organizationId, orderId), contentType, size);
   }
 
@@ -393,6 +489,7 @@ export class OrdersService {
       if (!(await lockOrder(tx, orderId))) throw Errors.notFound('la orden');
       const o = await this.findFull(tx, orderId);
       this.assertCanSubmit(o);
+      await this.assertNoOnlinePayment(tx, orderId);
       if (!file) {
         const payments = await this.settings.read(tx, 'payments');
         if (payments.data.requireReceipt) {

@@ -4,6 +4,8 @@ import { BillingService } from '../billing/billing.service';
 import { LotteryService } from '../lottery/lottery.service';
 import { ManagerAlertsService } from '../messaging/manager-alerts.service';
 import { NotificationsService } from '../messaging/notifications.service';
+import { GatewayPaymentsService } from '../payments/gateway-payments.service';
+import { PlanBillingService } from '../payments/plan-billing.service';
 import { RedisService } from '../redis/redis.service';
 import { JOB, MAINTENANCE_QUEUE } from './jobs.constants';
 import { MaintenanceService } from './maintenance.service';
@@ -29,6 +31,8 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     private readonly billing: BillingService,
     private readonly lottery: LotteryService,
     private readonly managerAlerts: ManagerAlertsService,
+    private readonly gateway: GatewayPaymentsService,
+    private readonly planBilling: PlanBillingService,
   ) {
     this.register(JOB.expireReservations, () => this.maintenance.expireReservations());
     this.register(JOB.closeSalesSweep, () => this.maintenance.closeSalesSweep());
@@ -41,6 +45,10 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     // billing-sync: un evento del webhook (con id) o el barrido periódico.
     this.register(JOB.billingSync, (job) => (job.data?.billingEventId ? this.billing.processEvent(job.data.billingEventId) : this.billing.sweep()));
     // Resultados de LoteríaYa (respaldo de los webhooks) y recordatorio de entregas a los gestores.
+    // Pagos en línea: respaldo de los webhooks de Wompi (consulta los pagos que siguen en curso).
+    this.register(JOB.gatewayReconcile, () => this.gateway.reconcile());
+    // Planes con Wompi: cobra las renovaciones, reintenta las vencidas y cancela las marcadas.
+    this.register(JOB.planRenewals, () => this.planBilling.renewDue());
     this.register(JOB.lotteryPoll, () => this.lottery.poll());
     this.register(JOB.deliveryReminder, () => this.managerAlerts.deliveryReminders());
   }
@@ -57,6 +65,8 @@ export class MaintenanceWorker implements OnModuleInit, OnModuleDestroy {
     await q.upsertJobScheduler(JOB.rankingRollover, { every: 60_000 }, { name: JOB.rankingRollover });
     await q.upsertJobScheduler(JOB.dailyDigest, { every: 15 * 60_000 }, { name: JOB.dailyDigest });
     await q.upsertJobScheduler(JOB.billingSync, { every: 60 * 60_000 }, { name: JOB.billingSync, data: {} });
+    await q.upsertJobScheduler(JOB.gatewayReconcile, { every: 60_000 }, { name: JOB.gatewayReconcile });
+    await q.upsertJobScheduler(JOB.planRenewals, { every: 15 * 60_000 }, { name: JOB.planRenewals });
     await q.upsertJobScheduler(JOB.lotteryPoll, { every: 10 * 60_000 }, { name: JOB.lotteryPoll });
     await q.upsertJobScheduler(JOB.deliveryReminder, { every: 30 * 60_000 }, { name: JOB.deliveryReminder });
 

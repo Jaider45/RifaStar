@@ -31,6 +31,9 @@ export default tseslint.config(
       'src/plans/**',
       // Resultados de loterías: tabla global (sin organización) y búsqueda de sorteos de todas las orgs.
       'src/lottery/**',
+      // Pagos en línea: los webhooks de Wompi y la conciliación llegan sin sesión y recorren pagos de todas
+      // las organizaciones. El panel y el checkout público leen y crean con tenantTx.
+      'src/payments/**',
     ],
     rules: {
       'no-restricted-syntax': [

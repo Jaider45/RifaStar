@@ -50,8 +50,15 @@ Quien tenga la URL puede entrar con las claves del seed.
 | `/admin/*` | Panel: sorteos, pagos, comprobantes de ingreso, ganadores, ranking, ventas, participantes y ajustes |
 | `/plataforma/login`, `/plataforma/*` | Equipo de Rifa Star (2FA obligatorio) |
 | `/{org}` | Página pública de la organización |
-| `/{org}/{sorteo}` → `/pagar` → `/resultado` | Compra de números y resultados |
+| `/{org}/{sorteo}` → `/pagar` → `/resultado` | Compra de números (pago en línea o transferencia) y resultados |
 | `/{org}/mis-boletos`, `/{org}/ranking` | Boletos del participante (código por WhatsApp) y ranking |
+
+## Pagos en línea (Wompi)
+
+El participante paga con tarjeta, Nequi, PSE o Botón Bancolombia dentro de Rifa Star, y el organizador
+contrata su plan con tarjeta, siempre en el checkout propio: Wompi procesa por detrás y el número de la
+tarjeta nunca llega a nuestros servidores. En desarrollo funciona sin Wompi (pasarela simulada).
+Configuración y detalles en [api/README.md › Wompi](api/README.md#wompi-pagos-en-línea-con-checkout-propio).
 
 El enlace de un vendedor es `/{org}?v=CODIGO` y el de un referido `/{org}?ref=CODIGO`;
 los códigos se guardan durante la visita y viajan con la compra.

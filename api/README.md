@@ -98,7 +98,7 @@ npm run dev:worker      # worker (BullMQ)
 ```
 
 Para correr sin almacenamiento S3 ni SMTP, usa `STORAGE_DRIVER=fake`, `MAIL_DRIVER=fake`,
-`MESSAGING_DRIVER=fake`, `LOTTERY_DRIVER=fake` y `BILLING_DRIVER=fake` en `.env`.
+`MESSAGING_DRIVER=fake`, `LOTTERY_DRIVER=fake`, `BILLING_DRIVER=fake` y `WOMPI_DRIVER=fake` en `.env`.
 
 `npm run db:reset` borra la base, migra y vuelve a sembrar. Úsalo solo en desarrollo.
 
@@ -174,8 +174,12 @@ con todas sus claves. En producción tampoco se publica la documentación intera
 | `LOTERIAYA_API_KEY` | — | Clave de LoteríaYa (cabecera `X-Api-Key`) |
 | `LOTERIAYA_WEBHOOK_SECRET` | — | Secreto HMAC-SHA256 de los webhooks de LoteríaYa |
 | `LOTERIAYA_SIGNATURE_HEADER` | `x-loteriaya-signature` | Cabecera de la firma: confírmala con la especificación que envía LoteríaYa |
-| `BILLING_DRIVER` | `fake` | `stripe` · `fake` (sin llamadas salientes, misma verificación de firma) |
+| `BILLING_DRIVER` | `fake` | `stripe` (página de Stripe) · `wompi` (checkout propio con tarjeta) · `fake` (desarrollo: checkout propio simulado) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | — | |
+| `WOMPI_DRIVER` | `fake` | `wompi` · `fake` (simula Wompi). En producción siempre es el real |
+| `WOMPI_PUBLIC_KEY` / `WOMPI_PRIVATE_KEY` / `WOMPI_INTEGRITY_SECRET` / `WOMPI_EVENTS_SECRET` | — | Cuenta de Wompi de Rifa Star (cobra los planes). Las cuatro del mismo ambiente |
+| `WOMPI_SANDBOX_URL` / `WOMPI_PRODUCTION_URL` | URLs oficiales de Wompi | Solo para apuntar a otro entorno |
+| `API_PUBLIC_URL` | `PUBLIC_BASE_URL` | URL pública de la API; se usa para armar las URL de eventos de Wompi |
 
 ---
 
@@ -322,7 +326,7 @@ está en `prisma/migrations/*_tenancy_rls`.
 | Panel de la organización | `/v1/raffles`, `/v1/orders`, `/v1/payments`, `/v1/receipts`, `/v1/participants`, `/v1/ranking`, `/v1/settings`, `/v1/team`, `/v1/roles`, `/v1/billing`, `/v1/dashboard`… | Bearer + `X-Organization-Id` |
 | Público | `/v1/public/…` | sin sesión (rate limit) · token de orden · token de participante |
 | Plataforma | `/v1/platform/…` | Bearer de plataforma (después del TOTP) |
-| Webhooks | `/v1/webhooks/whatsapp`, `/v1/webhooks/billing/stripe` | firma |
+| Webhooks | `/v1/webhooks/whatsapp`, `/v1/webhooks/billing/stripe`, `/v1/webhooks/wompi/…` | firma |
 
 ---
 
@@ -359,5 +363,50 @@ Para recibir los estados de entrega:
    `customer.subscription.created|updated|deleted`, `invoice.paid` e
    `invoice.payment_failed`.
 
-Para agregar Wompi o Mercado Pago, implementa la clase abstracta
+Para agregar otra pasarela de planes, implementa la clase abstracta
 `BillingProvider` (`src/billing/billing.provider.ts`).
+
+### Wompi (pagos en línea con checkout propio)
+
+El participante y el organizador pagan **dentro de Rifa Star**; Wompi procesa por detrás. La tarjeta
+se cifra en el navegador (JWE) y se envía directo a Wompi con la llave pública: a la API solo llega
+un token, así que ni el número ni el CVC pasan por nuestros servidores. Solo PSE y el Botón
+Bancolombia mandan al participante a su banco un momento (y vuelve a la misma página).
+
+| | Boletas | Planes de Rifa Star |
+| --- | --- | --- |
+| Cuenta de Wompi | La de **cada organización** (el dinero llega directo a ella) | La de Rifa Star (`WOMPI_*`) |
+| Medios | Tarjeta, Nequi, PSE, Botón Bancolombia | Tarjeta (se guarda y se cobra cada mes) |
+| Webhook | `/v1/webhooks/wompi/{id de la cuenta}` (se muestra en Ajustes › Pagos) | `/v1/webhooks/wompi/platform` |
+| Configuración | Ajustes › Pagos › Pagos en línea | `BILLING_DRIVER=wompi` + `WOMPI_*` |
+
+**Boletas.** El organizador pega sus cuatro llaves (pública, privada, secreto de integridad y de
+eventos, del mismo ambiente). Se validan contra Wompi, las privadas se guardan cifradas
+(AES-256-GCM) y nunca se devuelven. Al pagar, la orden se aprueba sola, se emiten los boletos y
+suma el ranking. Una orden con un pago en curso no vence (tope de 60 minutos). Si un pago se
+aprueba pero ya no se puede aplicar (otra persona compró el número o el sorteo ya se jugó), queda
+marcado para **reembolso**: el panel avisa y el organizador devuelve el dinero desde su Wompi
+(la API no hace reembolsos automáticos).
+
+**Planes.** Wompi no tiene suscripciones: se guarda la tarjeta, se cobra el primer mes al contratar
+y el job `plan-renewals` cobra cada mes. Si falla: la cuenta pasa a «pago vencido», se avisa por
+correo, se reintenta cada 24 h durante la gracia y `billing-sync` la suspende al vencerse. Cambiar
+la tarjeta reintenta de inmediato. Cancelar deja el plan activo hasta el fin del periodo pagado.
+Cambiar de plan cobra el mes completo del plan nuevo desde hoy (sin prorrateo).
+
+**Seguridad.** Cada evento se verifica con SHA-256 y el secreto de eventos, **y además se confirma
+consultando a Wompi**: el cuerpo de un webhook nunca se toma como verdad. La referencia enviada a
+Wompi es el id del pago; el monto y la referencia aprobados deben coincidir con los del pago. El
+job `gateway-reconcile` (cada minuto) resuelve los pagos cuyo webhook se perdió.
+
+**Desarrollo.** Con `WOMPI_DRIVER=fake` (por defecto) todo funciona sin llamar a Wompi: la tarjeta
+`4242 4242 4242 4242` aprueba y `4111 1111 1111 1111` rechaza; Nequi `3991111111` aprueba y
+`3992222222` rechaza; en PSE el banco «1» aprueba y el «2» rechaza (igual que el sandbox). En
+producción el driver real se usa siempre, aunque se pida `fake`. Para probar contra el sandbox de
+Wompi usa `WOMPI_DRIVER=wompi` con llaves `pub_test_…`.
+
+**Puesta en marcha en producción.**
+1. En Wompi › Desarrolladores copia las cuatro llaves de la cuenta de Rifa Star a `WOMPI_*`.
+2. En la misma pantalla pega `{API_PUBLIC_URL}/v1/webhooks/wompi/platform` como *URL de eventos*.
+3. `BILLING_DRIVER=wompi`.
+4. Cada organizador conecta su cuenta en Ajustes › Pagos y pega su propia URL de eventos.

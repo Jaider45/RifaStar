@@ -13,6 +13,8 @@ import { cop } from '@/lib/format';
 import { formatPhone } from '@/lib/phone';
 import { formatDay, timeAgo } from '@/lib/time';
 import { NuevaCuenta } from './Constructor';
+import { PagosEnLinea } from './PagosEnLinea';
+import { ContratarPlan, TarjetaPlan, type TarjetaGuardada } from './PlanTarjeta';
 import './Ajustes.css';
 
 const TABS = [
@@ -337,6 +339,7 @@ function Pagos() {
   const editable = can('settings.brand');
 
   return (
+    <>
     <section className="rs-panel setting-panel">
       <h2 className="h2 h2--lg setting-panel__title">Pagos</h2>
       {ok && <OkNote>{ok}</OkNote>}
@@ -395,6 +398,8 @@ function Pagos() {
       {editable && <div style={{ padding: '0 24px 24px' }}><Acciones dirty={s.dirty} saving={s.save.isPending} onReset={s.reset} onSave={() => s.save.mutateAsync().then(() => setOk('Cambios guardados.')).catch(() => undefined)} /></div>}
       {nueva && <NuevaCuenta onClose={() => setNueva(false)} onCreated={() => { setNueva(false); setOk('Cuenta agregada.'); }} />}
     </section>
+    <PagosEnLinea />
+    </>
   );
 }
 
@@ -780,8 +785,10 @@ function Notificaciones() {
 
 interface Billing {
   status: string;
+  /** «embedded»: tarjeta en el checkout propio (Wompi). «redirect»: página de la pasarela (Stripe). */
+  checkoutMode: 'embedded' | 'redirect';
   plan: { code: string; name: string; monthlyPriceCop: number };
-  subscription: { status: string; provider: string; trialEndsAt: string | null; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; pastDueSince: string | null } | null;
+  subscription: { status: string; provider: string; trialEndsAt: string | null; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; pastDueSince: string | null; card?: TarjetaGuardada | null } | null;
   usage: { activeRaffles: { used: number; limit: number | null }; members: { used: number; limit: number }; whatsappMessages: { used: number; limit: number } };
   invoices: { id: string; amountCop: number; status: string; paidAt: string | null; attemptedAt: string | null; failureReason: string | null }[];
 }
@@ -810,6 +817,7 @@ function Plan() {
   const b = useOrgQuery<Billing>(can('settings.billing') ? '/v1/billing' : null);
   const catalog = useOrgQuery<CatalogPlan[]>(can('settings.billing') ? '/v1/billing/plans' : null);
   const [elegir, setElegir] = useState(false);
+  const [contratar, setContratar] = useState<CatalogPlan | null>(null);
   const checkout = useOrgMutation<string, { url: string }>((planCode, req) => req('/v1/billing/checkout', { body: { planCode } }));
   const portal = useOrgMutation<void, { url: string }>((_v, req) => req('/v1/billing/portal', { method: 'POST' }));
 
@@ -829,7 +837,7 @@ function Plan() {
     d.subscription?.status === 'trialing'
       ? `Prueba gratis hasta el ${d.subscription.trialEndsAt ? formatDay(d.subscription.trialEndsAt, tz) : '—'}`
       : d.subscription?.status === 'past_due'
-        ? 'Pago vencido: actualiza tu método de pago'
+        ? 'Pago vencido: actualiza tu tarjeta para no perder el acceso'
         : d.subscription?.currentPeriodEnd
           ? `Renueva el ${formatDay(d.subscription.currentPeriodEnd, tz)}`
           : 'Activo';
@@ -849,7 +857,16 @@ function Plan() {
         <Uso t="Miembros del equipo" pct={pct(d.usage.members.used, d.usage.members.limit)} d={`${d.usage.members.used} de ${d.usage.members.limit}`} />
         <Uso t="Mensajes de WhatsApp" pct={pct(d.usage.whatsappMessages.used, d.usage.whatsappMessages.limit)} d={`${d.usage.whatsappMessages.used.toLocaleString('es-CO')} de ${d.usage.whatsappMessages.limit.toLocaleString('es-CO')} este mes`} />
       </div>
-      {d.subscription?.provider && d.subscription.provider !== 'manual' && (
+      {d.checkoutMode === 'embedded' && d.subscription?.provider === 'wompi' && (
+        <TarjetaPlan
+          planCode={d.plan.code}
+          card={d.subscription.card ?? null}
+          cancelAtPeriodEnd={d.subscription.cancelAtPeriodEnd}
+          currentPeriodEnd={d.subscription.currentPeriodEnd}
+          tz={tz}
+        />
+      )}
+      {d.checkoutMode === 'redirect' && d.subscription?.provider && d.subscription.provider !== 'manual' && (
         <Ajuste t="Método de pago y facturas" d="Se administra de forma segura en la pasarela de pagos." style={{ borderTop: '1px solid var(--linea)' }}>
           <button type="button" className="rs-btn rs-btn--fantasma rs-btn--sm" disabled={portal.isPending} onClick={() => portal.mutateAsync().then((r) => (window.location.href = r.url)).catch(() => undefined)}>
             Administrar
@@ -887,7 +904,18 @@ function Plan() {
               {p.code === d.plan.code ? (
                 <Badge tono="cerrado">Tu plan actual</Badge>
               ) : p.purchasable ? (
-                <button type="button" className="rs-btn rs-btn--primario rs-btn--sm" disabled={checkout.isPending} onClick={() => checkout.mutateAsync(p.code).then((r) => (window.location.href = r.url)).catch(() => undefined)}>
+                <button
+                  type="button"
+                  className="rs-btn rs-btn--primario rs-btn--sm"
+                  disabled={checkout.isPending}
+                  onClick={() => {
+                    // Con tarjeta en el checkout propio no se sale de Rifa Star; con Stripe se redirige.
+                    if (d.checkoutMode === 'embedded') {
+                      setElegir(false);
+                      setContratar(p);
+                    } else checkout.mutateAsync(p.code).then((r) => (window.location.href = r.url)).catch(() => undefined);
+                  }}
+                >
                   Elegir {p.name}
                 </button>
               ) : (
@@ -898,6 +926,7 @@ function Plan() {
           <ErrorNote error={checkout.error} />
         </Modal>
       )}
+      {contratar && <ContratarPlan plan={contratar} onClose={() => setContratar(null)} />}
     </section>
   );
 }
