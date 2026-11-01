@@ -23,7 +23,11 @@ const pidFile = join(root, '.demo-preview.pid');
 const logFile = join(root, '.demo-preview.log');
 const PREVIEW_PORT = 4173;
 
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { cwd: api, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+// Sin tope de buffer el script se caía con ENOBUFS: el registro de un túnel caducado (que reintenta sin
+// parar) pasa de 1 MB, que es el límite por defecto de execFileSync.
+const MAX_BUFFER = 512 * 1024 * 1024;
+const run = (cmd, args, opts = {}) =>
+  execFileSync(cmd, args, { cwd: api, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: MAX_BUFFER, ...opts });
 const compose = (...args) => run('docker', ['compose', '--profile', 'demo', ...args]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (msg) => console.log(`· ${msg}`);
@@ -47,14 +51,31 @@ if (process.argv.includes('--stop')) {
   process.exit(0);
 }
 
-/** Última URL de un túnel (los logs se acumulan entre reinicios). */
-async function tunnelUrl(service) {
+const URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/g;
+const lastUrl = (service) => compose('logs', '--no-color', service).match(URL_RE)?.at(-1);
+
+/** Última URL de un túnel (los logs se acumulan entre reinicios). Con `stale`, espera una distinta de esa. */
+async function tunnelUrl(service, stale) {
   for (let i = 0; i < 60; i++) {
-    const urls = compose('logs', '--no-color', service).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g);
-    if (urls?.length) return urls.at(-1);
+    const url = lastUrl(service);
+    if (url && url !== stale) return url;
     await sleep(2000);
   }
   throw new Error(`El túnel ${service} no entregó una URL en 2 minutos. Revisa «docker compose logs ${service}».`);
+}
+
+/**
+ * Los túneles rápidos de Cloudflare caducan: el contenedor sigue vivo pero reintenta para siempre con
+ * «Tunnel not found» y su URL ya no sirve. Si el túnel está así se reinicia para que pida una nueva.
+ */
+async function liveTunnelUrl(service) {
+  if (/Tunnel not found/.test(compose('logs', '--no-color', '--tail', '5', service))) {
+    const stale = lastUrl(service);
+    log(`El túnel ${service} caducó (Cloudflare ya no lo reconoce): reiniciándolo para obtener una URL nueva…`);
+    compose('restart', service);
+    return tunnelUrl(service, stale);
+  }
+  return tunnelUrl(service);
 }
 
 if (!existsSync(override)) {
@@ -69,8 +90,8 @@ if (!existsSync(override)) {
 
 log('Levantando Docker (base de datos, API, worker, almacenamiento y túneles)…');
 compose('up', '-d');
-const web = await tunnelUrl('tunnel-web');
-const s3 = await tunnelUrl('tunnel-s3');
+const web = await liveTunnelUrl('tunnel-web');
+const s3 = await liveTunnelUrl('tunnel-s3');
 
 let text = readFileSync(override, 'utf8');
 const before = text;
