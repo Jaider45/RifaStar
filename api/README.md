@@ -3,7 +3,7 @@
 Backend de **Rifa Star**, un SaaS multi-organización para crear y vender sorteos
 por enlace público y WhatsApp.
 
-- **Stack:** Node 20 + TypeScript (strict), NestJS 11, PostgreSQL 16 + Prisma 6
+- **Stack:** Node 24 + TypeScript (strict), NestJS 11, PostgreSQL 16 + Prisma 6
   (con RLS), Redis + BullMQ, almacenamiento S3 (SeaweedFS en desarrollo, Cloudflare R2 en producción),
   WhatsApp Cloud API, LoteríaYa (resultados informativos) y Stripe.
 - **Procesos:** `api` (HTTP) y `worker` (colas y tareas programadas). Comparten el mismo código.
@@ -80,7 +80,7 @@ estos usuarios: sus claves son públicas.
 
 ## 2. Desarrollo sin Docker
 
-Requisitos: Node 20+, PostgreSQL 16 y Redis 7.
+Requisitos: Node 22.13+ (recomendado 24: Node 20 ya no recibe parches de seguridad), PostgreSQL 16 y Redis 7.
 
 ```bash
 cd api
