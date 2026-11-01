@@ -1,6 +1,5 @@
-import { authenticator } from 'otplib';
 import { PasswordService } from '../src/auth/password.service';
-import { as, closeTestApp, cookieValue, createOrg, createTestApp, TEST_PASSWORD, type TestContext, uid } from './helpers';
+import { as, closeTestApp, codeFor, cookieValue, createOrg, createTestApp, TEST_PASSWORD, type TestContext, uid } from './helpers';
 
 describe('Autenticación de plataforma (2FA obligatorio)', () => {
   let ctx: TestContext;
@@ -40,7 +39,7 @@ describe('Autenticación de plataforma (2FA obligatorio)', () => {
 
     const ok = await ctx.http
       .post('/v1/platform/auth/2fa/verify')
-      .send({ challengeToken: login.body.challengeToken, code: authenticator.generate(enroll.body.secret) })
+      .send({ challengeToken: login.body.challengeToken, code: codeFor(enroll.body.secret) })
       .expect(200);
     expect(cookieValue(ok, 'rs_prt')).toBeTruthy();
 
@@ -73,7 +72,7 @@ describe('Autenticación de plataforma (2FA obligatorio)', () => {
     const enroll = await ctx.http.post('/v1/platform/auth/2fa/enroll').send({ challengeToken: enrollLogin.body.challengeToken });
     const ok = await ctx.http
       .post('/v1/platform/auth/2fa/verify')
-      .send({ challengeToken: enrollLogin.body.challengeToken, code: authenticator.generate(enroll.body.secret) })
+      .send({ challengeToken: enrollLogin.body.challengeToken, code: codeFor(enroll.body.secret) })
       .expect(200);
     const rt1 = cookieValue(ok, 'rs_prt')!;
     const r = await ctx.http.post('/v1/platform/auth/refresh').set('Cookie', `rs_prt=${rt1}`).expect(200);

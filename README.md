@@ -79,6 +79,10 @@ los lockfiles se **generan** con npm 10 (el de Node 22): con npm 11 o 12 no los 
 dependencias: `docker run --rm -v "$PWD:/w" -w /w node:22-bookworm-slim npm install --package-lock-only`.
 En la API, `deepmerge` es una copia segura en `api/vendor/deepmerge` (ver su `index.js`).
 
+Dependabot agrupa los paquetes que solo se instalan juntos (React, ESLint, Vite y Vitest, pino,
+NestJS, Prisma) y no propone las versiones mayores que hoy no se pueden instalar; cada exclusión
+dice por qué en `.github/dependabot.yml`.
+
 ### Versiones forzadas por seguridad (`overrides`)
 
 `package.json` y `api/package.json` fuerzan `minimatch` ≥ 11.0.3 (GHSA-g3hv-75wg-m249) y, en la API,

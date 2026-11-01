@@ -18,8 +18,12 @@ describe('Apartado atómico de números', () => {
     );
     const won = results.filter((r) => r.status === 201);
     const lost = results.filter((r) => r.status === 409);
-    expect(won).toHaveLength(1);
-    expect(lost).toHaveLength(49);
+    // Si falla, el mensaje dice qué respondió cada solicitud (p. ej. «409 NUMBERS_TAKEN ×40, 500 INTERNAL ×10»).
+    const tally = new Map<string, number>();
+    for (const r of results) tally.set(`${r.status} ${r.body?.code ?? ''}`, (tally.get(`${r.status} ${r.body?.code ?? ''}`) ?? 0) + 1);
+    const resumen = [...tally].map(([k, n]) => `${k} ×${n}`).join(', ');
+    expect(won, resumen).toHaveLength(1);
+    expect(lost, resumen).toHaveLength(49);
     for (const r of lost) {
       expect(r.body.code).toBe('NUMBERS_TAKEN');
       expect(r.body.message).toBe('El número 07 ya fue apartado por otra persona. Elige otro.');

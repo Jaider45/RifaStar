@@ -1,7 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Member, Organization, User } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
-import { authenticator } from 'otplib';
+import { createGuardrails, generateSync } from 'otplib';
 import { encrypt } from '../src/common/crypto';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
@@ -43,8 +43,10 @@ export const uid = () => randomBytes(4).toString('hex');
 export const TEST_PASSWORD = 'clave-segura-123';
 /** Secreto TOTP de los usuarios de prueba: los gestores deben tener 2FA para aprobar pagos y anunciar ganadores. */
 export const TEST_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+/** Código vigente para `secret`; admite el secreto corto de pruebas, igual que TotpService. */
+export const codeFor = (secret: string) => generateSync({ secret, guardrails: createGuardrails({ MIN_SECRET_BYTES: 10 }) });
 /** Código vigente para TEST_TOTP_SECRET. */
-export const totp = () => authenticator.generate(TEST_TOTP_SECRET);
+export const totp = () => codeFor(TEST_TOTP_SECRET);
 
 /** Cada código sirve una sola vez: libera el último paso usado por este usuario (solo en pruebas). */
 export async function resetTotp(ctx: TestContext, userId: string): Promise<void> {
