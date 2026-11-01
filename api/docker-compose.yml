@@ -117,19 +117,20 @@ services:
   # --- Demo por internet (perfil «demo»): túneles rápidos de Cloudflare, sin cuenta. ---
   # Los levanta «npm run demo» (en la raíz), que además pone sus URLs en la API.
   # Cada túnel recibe una URL https://xxxx.trycloudflare.com que cambia al reiniciarlo.
+  # La URL vigente la publica cloudflared en http://<servicio>:20241/quicktunnel (métricas).
   tunnel-web:
     image: cloudflare/cloudflared:latest
     profiles: [demo]
     restart: unless-stopped
     extra_hosts: ["host.docker.internal:host-gateway"]
-    command: tunnel --no-autoupdate --url http://host.docker.internal:4173
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:20241 --url http://host.docker.internal:4173
 
   tunnel-s3:
     image: cloudflare/cloudflared:latest
     profiles: [demo]
     restart: unless-stopped
     depends_on: [s3]
-    command: tunnel --no-autoupdate --url http://s3:9000
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:20241 --url http://s3:9000
 
 volumes:
   pgdata:
