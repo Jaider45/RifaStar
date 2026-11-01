@@ -38,6 +38,10 @@ updates:
       # nestjs-zod (validación y OpenAPI) solo admite NestJS 10 y 11.
       - dependency-name: "@nestjs/*"
         update-types: [version-update:semver-major]
+      # Cada versión mayor de stripe cambia la versión de la API de Stripe con la que habla (forma de
+      # suscripciones y facturas). Se sube a mano, probando el cobro de planes con llaves de prueba.
+      - dependency-name: stripe
+        update-types: [version-update:semver-major]
       # Prisma 7 es una migración aparte: adaptador de Postgres, prisma.config.ts y cliente nuevo.
       - dependency-name: prisma
         update-types: [version-update:semver-major]
