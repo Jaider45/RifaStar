@@ -141,7 +141,7 @@ cuenta, con el enlace que les llega por WhatsApp.
 <tr>
 <td align="center" width="25%"><img src="docs/capturas/app/publico-organizacion.png" alt="Página pública de la organización" width="220"></td>
 <td align="center" width="25%"><img src="docs/capturas/app/publico-sorteo.png" alt="Página del sorteo" width="220"></td>
-<td align="center" width="25%"><img src="docs/capturas/wompi/01-checkout-participante.png" alt="Pago en línea" width="220"></td>
+<td align="center" width="25%"><img src="docs/capturas/app/publico-pago.png" alt="Pago en línea" width="220"></td>
 <td align="center" width="25%"><img src="docs/capturas/app/publico-resultado.png" alt="Resultados del sorteo" width="220"></td>
 </tr>
 <tr>
@@ -156,9 +156,13 @@ cuenta, con el enlace que les llega por WhatsApp.
 <summary><b>💳 Más capturas de los pagos en línea</b></summary>
 <br>
 
-| Pago aprobado | Tarjeta rechazada | Panel de pagos en línea |
+| Checkout completo | Tarjeta rechazada | Pago aprobado |
 | :---: | :---: | :---: |
-| <img src="docs/capturas/wompi/03-pago-aprobado.png" width="240"> | <img src="docs/capturas/wompi/02-tarjeta-rechazada.png" width="240"> | <img src="docs/capturas/wompi/05-panel-pagos-en-linea.png" width="320"> |
+| <img src="docs/capturas/wompi/01-checkout-participante.png" width="220"> | <img src="docs/capturas/wompi/02-tarjeta-rechazada.png" width="220"> | <img src="docs/capturas/wompi/03-pago-aprobado.png" width="220"> |
+
+| Panel de pagos en línea |
+| :---: |
+| <img src="docs/capturas/wompi/05-panel-pagos-en-linea.png" width="520"> |
 
 | Contratar plan | Plan activo |
 | :---: | :---: |
@@ -171,7 +175,7 @@ cuenta, con el enlace que les llega por WhatsApp.
 ## 🔄 Cómo funciona
 
 ```mermaid
-flowchart LR
+flowchart TD
     A["🧑‍💼 Organizador<br/>crea y publica el sorteo"] --> B["🔗 Enlace<br/>por WhatsApp y redes"]
     B --> C["📱 Participante<br/>elige sus números"]
     C --> D{"¿Cómo paga?"}
