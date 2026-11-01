@@ -51,17 +51,30 @@ if (process.argv.includes('--stop')) {
   process.exit(0);
 }
 
-const URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/g;
-const lastUrl = (service) => compose('logs', '--no-color', service).match(URL_RE)?.at(-1);
+/**
+ * URL vigente de un túnel: se la pregunta a cloudflared (http://<servicio>:20241/quicktunnel) desde el
+ * contenedor de la API, que está en la misma red. Leerla de los logs no sirve: se acumulan entre
+ * reinicios (al volver a encender un túnel detenido, la última URL del log es la vieja) y, cuando
+ * pasan de cierto tamaño, Docker devuelve solo una parte.
+ */
+function currentUrl(service) {
+  const script = `fetch('http://${service}:20241/quicktunnel').then((r) => r.json()).then((j) => process.stdout.write(j.hostname || ''))`;
+  try {
+    const host = compose('exec', '-T', 'api', 'node', '-e', script).trim();
+    return host ? `https://${host}` : undefined;
+  } catch {
+    return undefined; // el túnel o la API todavía están arrancando
+  }
+}
 
-/** Última URL de un túnel (los logs se acumulan entre reinicios). Con `stale`, espera una distinta de esa. */
+/** URL de un túnel en cuanto la tenga. Con `stale`, espera una distinta de esa. */
 async function tunnelUrl(service, stale) {
   for (let i = 0; i < 60; i++) {
-    const url = lastUrl(service);
+    const url = currentUrl(service);
     if (url && url !== stale) return url;
     await sleep(2000);
   }
-  throw new Error(`El túnel ${service} no entregó una URL en 2 minutos. Revisa «docker compose logs ${service}».`);
+  throw new Error(`El túnel ${service} no entregó una URL en 2 minutos. Revisa «docker compose logs --tail 50 ${service}».`);
 }
 
 /**
@@ -70,7 +83,7 @@ async function tunnelUrl(service, stale) {
  */
 async function liveTunnelUrl(service) {
   if (/Tunnel not found/.test(compose('logs', '--no-color', '--tail', '5', service))) {
-    const stale = lastUrl(service);
+    const stale = currentUrl(service);
     log(`El túnel ${service} caducó (Cloudflare ya no lo reconoce): reiniciándolo para obtener una URL nueva…`);
     compose('restart', service);
     return tunnelUrl(service, stale);
@@ -125,9 +138,19 @@ const child = spawn(process.execPath, [join(root, 'node_modules', 'vite', 'bin',
 child.unref();
 writeFileSync(pidFile, String(child.pid));
 
-for (let i = 0; i < 30; i++) {
-  const ok = await fetch(`${web}/`).then((r) => r.ok).catch(() => false);
-  if (ok) break;
-  await sleep(2000);
+// Un túnel recién creado tarda unos segundos en ser visible desde internet.
+let reachable = false;
+for (let i = 0; i < 30 && !reachable; i++) {
+  reachable = await fetch(`${web}/v1/health`).then((r) => r.ok).catch(() => false);
+  if (!reachable) await sleep(2000);
+}
+if (!reachable) {
+  console.error(
+    `\nLa web no respondió por el túnel en 1 minuto (${web}).\n` +
+      `  · Local: http://localhost:${PREVIEW_PORT} · Registro de la web: .demo-preview.log\n` +
+      '  · Túnel: docker compose --profile demo logs --tail 50 tunnel-web (en api/)\n' +
+      '  A veces Cloudflare tarda más: prueba la URL en un par de minutos o corre «npm run demo» otra vez.',
+  );
+  process.exit(1);
 }
 console.log(`\nDemo lista: ${web}\n  Panel: ${web}/login · Plataforma: ${web}/plataforma/login\n  (Registro de la web: .demo-preview.log · Apagar: npm run demo -- --stop)`);
