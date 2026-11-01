@@ -67,7 +67,17 @@ npm audit && (cd api && npm audit)          # dependencias: 0 vulnerabilidades
 GitHub Actions corre lo mismo en cada pull request (`.github/workflows/ci.yml`) y además
 verifica que `api/openapi.json` esté al día y que ninguna dependencia tenga vulnerabilidades.
 
-Los lockfiles se generan con npm 10 (Node 20, igual que el CI y Docker). Con npm 11 o 12
-instala con `npm ci` y no regeneres el lockfile; para cambiar dependencias:
-`docker run --rm -v "$PWD:/w" -w /w node:20-bookworm-slim npm install --package-lock-only`.
+Node 24 (el que usan el CI y Docker) trae npm 11, que instala bien los lockfiles con `npm ci`. Pero
+los lockfiles se **generan** con npm 10 (el de Node 22): con npm 11 o 12 no los regeneres. Para cambiar
+dependencias: `docker run --rm -v "$PWD:/w" -w /w node:22-bookworm-slim npm install --package-lock-only`.
 En la API, `deepmerge` es una copia segura en `api/vendor/deepmerge` (ver su `index.js`).
+
+### Versiones forzadas por seguridad (`overrides`)
+
+`package.json` y `api/package.json` fuerzan `minimatch` ≥ 11.0.3 (GHSA-g3hv-75wg-m249) y, en la API,
+`glob` ≥ 14.0.3 (GHSA-3g3m-2fjr-6pw4). Son herramientas de desarrollo (ESLint, typescript-eslint y
+`@nestjs/cli`), que aún no publican versiones con el arreglo; sin los `overrides` el `npm audit` del CI
+falla. Se validó con lint, tipos, `nest build` y todas las pruebas. **Cuándo quitarlos:** cuando esas
+herramientas pidan `minimatch` ≥ 11.0.1 por su cuenta (`npm ls minimatch` lo muestra). Único
+riesgo conocido: el plugin de webpack de `@nestjs/cli` usa la API antigua de `minimatch`; el proyecto
+compila con `tsc`, no con webpack, así que no se ejecuta. Si algún día se cambia a webpack, revisa esto.
