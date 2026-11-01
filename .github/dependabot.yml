@@ -1,22 +1,61 @@
 # Avisos y PRs automáticos de dependencias con vulnerabilidades o versiones nuevas
 # (plan de seguridad, punto 11). Revisa cada PR antes de aceptarlo.
+#
+# Los grupos juntan los paquetes que solo se instalan en pareja (por ejemplo react y react-dom):
+# subidos por separado, npm ci falla por dependencias incompatibles. Un paquete entra en el
+# primer grupo que lo nombra, así que los grupos por familia van antes de «menores».
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
+      react: { patterns: [react, react-dom, "@types/react", "@types/react-dom"] }
+      eslint: { patterns: [eslint, "@eslint/*", typescript-eslint, "eslint-plugin-*", globals] }
+      vite: { patterns: [vite, "@vitejs/*", vitest, "@vitest/*", jsdom] }
       menores: { update-types: [minor, patch] }
+    ignore:
+      # typescript-eslint admite TypeScript < 6.1; TypeScript 6 además pide cambiar los tsconfig.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Los tipos siguen la versión de Node del proyecto; se suben a mano junto con Node.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+
   - package-ecosystem: npm
     directory: /api
     schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     groups:
+      nestjs: { patterns: ["@nestjs/*", nestjs-zod] }
+      pino: { patterns: [pino, pino-http, nestjs-pino, pino-pretty] }
+      prisma: { patterns: [prisma, "@prisma/*"] }
+      eslint: { patterns: [eslint, "@eslint/*", typescript-eslint] }
+      vitest: { patterns: [vitest, "@vitest/*", unplugin-swc, "@swc/*"] }
       menores: { update-types: [minor, patch] }
+    ignore:
+      # nestjs-zod (validación y OpenAPI) solo admite NestJS 10 y 11.
+      - dependency-name: "@nestjs/*"
+        update-types: [version-update:semver-major]
+      # Prisma 7 es una migración aparte: adaptador de Postgres, prisma.config.ts y cliente nuevo.
+      - dependency-name: prisma
+        update-types: [version-update:semver-major]
+      - dependency-name: "@prisma/client"
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+
   - package-ecosystem: docker
     directory: /api
     schedule: { interval: monthly }
+    ignore:
+      # Solo versiones LTS de Node (24, 26…): la mayor se sube a mano junto con el CI.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }

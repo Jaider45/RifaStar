@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { authenticator } from 'otplib';
+import { createGuardrails, generateSecret, generateURI, verifySync } from 'otplib';
 import { decrypt, encrypt } from '../common/crypto';
 import { DatabaseService } from '../database/database.service';
 
 const STEP_SECONDS = 30;
-authenticator.options = { window: 1, step: STEP_SECONDS, digits: 6 };
+/**
+ * Los secretos nuevos son de 20 bytes. otplib 13 exige 16 como mínimo; se acepta desde 10 para
+ * no dejar por fuera las cuentas ya inscritas con el secreto de desarrollo del seed.
+ */
+const guardrails = createGuardrails({ MIN_SECRET_BYTES: 10 });
 
 @Injectable()
 export class TotpService {
@@ -12,11 +16,11 @@ export class TotpService {
 
   /** Genera un secreto nuevo. Devuelve el secreto cifrado (para guardar) y el URL otpauth (para el QR). */
   generate(accountLabel: string): { secretEnc: string; otpauthUrl: string; secret: string } {
-    const secret = authenticator.generateSecret(20);
+    const secret = generateSecret({ length: 20 });
     return {
       secret,
       secretEnc: encrypt(secret),
-      otpauthUrl: authenticator.keyuri(accountLabel, 'Rifa Star', secret),
+      otpauthUrl: generateURI({ issuer: 'Rifa Star', label: accountLabel, secret, period: STEP_SECONDS }),
     };
   }
 
@@ -43,9 +47,11 @@ export class TotpService {
   private matchStep(secretEnc: string | null | undefined, code: string | undefined): number | null {
     if (!secretEnc || !code) return null;
     try {
-      const delta = authenticator.checkDelta(code, decrypt(secretEnc));
-      return delta === null ? null : Math.floor(Date.now() / 1000 / STEP_SECONDS) + delta;
+      const result = verifySync({ secret: decrypt(secretEnc), token: code, period: STEP_SECONDS, epochTolerance: STEP_SECONDS, guardrails });
+      // El tipo de verifySync cubre también HOTP; solo el de TOTP trae timeStep.
+      return result.valid && 'timeStep' in result ? result.timeStep : null;
     } catch {
+      // Código con otro largo o caracteres que no son dígitos.
       return null;
     }
   }
