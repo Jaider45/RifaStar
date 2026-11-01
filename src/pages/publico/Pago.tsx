@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ApiError, request, uploadToStorage } from '@/api/client';
 import { usePublicQuery } from '@/api/hooks';
@@ -9,6 +9,7 @@ import { PubFrame } from '@/components/PubFrame';
 import { ErrorNote } from '@/components/ui';
 import { cop, pad } from '@/lib/format';
 import { useCountdown } from '@/lib/useCountdown';
+import { PagoEnLinea } from './PagoEnLinea';
 import { clearOrder, linkCodes, PubError, PubLoading, readOrder, saveOrder, unidadDe, type PublicRaffle } from './shared';
 import './publico.css';
 
@@ -23,6 +24,8 @@ interface PublicOrder {
   requireReceipt: boolean;
   rejectionReason: string | null;
   tickets: { code: string; number: string }[];
+  /** Pago en línea (checkout propio con la pasarela de la organización). */
+  online?: { enabled: boolean };
   paymentAccounts: { id: string; typeLabel: string; keyOrNumber: string; holderName: string; bankName: string | null; accountKind: string | null }[];
 }
 
@@ -84,7 +87,26 @@ export default function Pago() {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  /** Con pago en línea disponible se ofrece primero; la transferencia queda como alternativa. */
+  const [manual, setManual] = useState(false);
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  // Quien ya compró y vuelve a elegir números desde el mismo teléfono empieza una compra nueva: la orden
+  // anterior, si ya está cerrada, no debe tapar el formulario. Se revisa una sola vez por orden, al abrir
+  // la página; si no, borraría la confirmación en cuanto se aprueba el pago de esta misma compra.
+  const revisada = useRef<string | null>(null);
+  const hayNuevaSeleccion = elegidos.length > 0 || cantidad > 0;
+  useEffect(() => {
+    const d = order.data;
+    if (!stored || !d || revisada.current === stored.orderId) return;
+    revisada.current = stored.orderId;
+    if (hayNuevaSeleccion && d.status !== 'reserved' && d.status !== 'pending_verification') {
+      clearOrder(org, sorteo);
+      setStored(null);
+    }
+  }, [order.data, stored, hayNuevaSeleccion, org, sorteo]);
+  const pagoAprobado = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: ['public-order', stored?.orderId] });
+  }, [qc, stored?.orderId]);
 
   if (raffle.isLoading || (stored && order.isLoading)) return <PubLoading />;
   if (raffle.error || !raffle.data) return <PubError error={raffle.error} />;
@@ -256,6 +278,7 @@ export default function Pago() {
   // --- Apartada: pagar y subir comprobante -----------------------------------
   const cuentas = o.paymentAccounts;
   const m = cuentas[medio] ?? cuentas[0];
+  const enLinea = Boolean(o.online?.enabled);
   return (
     <PubFrame acento={r.accentColor} tema={r.page?.theme}>
       <Cabecera org={org} sorteo={sorteo} titulo={r.title} u={u} />
@@ -280,6 +303,25 @@ export default function Pago() {
           </div>
         </section>
 
+        {enLinea && !manual && (
+          <section className="stack" style={{ gap: 14 }}>
+            <h2 className="h2 h2--sm">Paga {cop(o.totalCop)} en línea</h2>
+            <PagoEnLinea orderId={o.orderId} token={stored.accessToken} onApproved={pagoAprobado} />
+            {cuentas.length > 0 && (
+              <button type="button" className="strong-link rs-btn rs-btn--fantasma rs-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setManual(true)}>
+                Prefiero pagar por transferencia y subir el comprobante
+              </button>
+            )}
+          </section>
+        )}
+
+        {(!enLinea || manual) && (
+        <>
+        {enLinea && (
+          <button type="button" className="strong-link rs-btn rs-btn--fantasma rs-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setManual(false)}>
+            ← Pagar en línea
+          </button>
+        )}
         <section className="stack" style={{ gap: 14 }}>
           <h2 className="h2 h2--sm">Paga {cop(o.totalCop)}</h2>
           {cuentas.length > 1 && (
@@ -329,6 +371,8 @@ export default function Pago() {
           </button>
           <p className="texto-pie">{nombreOrg} verifica el pago y te confirma por WhatsApp. Suele tardar menos de 15 minutos.</p>
         </section>
+        </>
+        )}
       </main>
     </PubFrame>
   );

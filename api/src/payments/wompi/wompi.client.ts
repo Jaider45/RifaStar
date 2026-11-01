@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AppError } from '../../common/errors';
-import { env } from '../../config/env';
+import { apiPublicUrl, env } from '../../config/env';
 import { integritySignature } from './signatures';
 import type {
   CreateTransactionInput,
@@ -226,6 +226,11 @@ export class HttpWompiClient extends WompiClient {
 export class FakeWompiClient extends WompiClient {
   readonly driver = 'fake' as const;
   private seq = 0;
+
+  /** La tarjeta se tokeniza en el endpoint simulado de nuestra propia API (ver SimulatedWompiController). */
+  override baseUrl(): string {
+    return `${apiPublicUrl()}/v1/dev/wompi`;
+  }
   readonly transactions = new Map<string, { tx: WompiTransaction; outcome: WompiStatus; body: Record<string, unknown> }>();
   private readonly sources = new Map<string, WompiStatus>();
 

@@ -5,6 +5,7 @@ import { GatewayPaymentsService } from './gateway-payments.service';
 import { GatewayController, PublicCheckoutController, WompiWebhookController } from './payments.controller';
 import { PlanBillingController } from './plan-billing.controller';
 import { PlanBillingService } from './plan-billing.service';
+import { SimulatedWompiController } from './wompi/simulated-wompi.controller';
 import { FakeWompiClient, HttpWompiClient, WompiClient } from './wompi/wompi.client';
 
 /**
@@ -13,7 +14,8 @@ import { FakeWompiClient, HttpWompiClient, WompiClient } from './wompi/wompi.cli
  */
 @Global()
 @Module({
-  controllers: [GatewayController, PublicCheckoutController, WompiWebhookController, PlanBillingController],
+  // La tokenización simulada solo existe con el driver simulado, que en producción nunca se activa.
+  controllers: [GatewayController, PublicCheckoutController, WompiWebhookController, PlanBillingController, ...(wompiDriver() === 'fake' ? [SimulatedWompiController] : [])],
   providers: [
     { provide: WompiClient, useClass: wompiDriver() === 'wompi' ? HttpWompiClient : FakeWompiClient },
     GatewayAccountsService,

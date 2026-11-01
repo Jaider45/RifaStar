@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCan, useOrgMutation, useOrgProfile, useOrgQuery } from '@/api/hooks';
 import type { Order, PaymentAccount, Raffle } from '@/api/types';
 import { Icon } from '@/components/Icon';
@@ -18,6 +18,8 @@ export default function Pagos() {
   const raffles = useOrgQuery<Raffle[]>('/v1/raffles');
   const queue = useOrgQuery<Order[]>(`/v1/payments/queue${sorteo ? `?raffleId=${sorteo}` : ''}`, { refetchInterval: 20_000 });
   const accounts = useOrgQuery<PaymentAccount[]>('/v1/payment-accounts');
+  // Pagos en línea aprobados que no se pudieron aplicar: hay que devolver el dinero.
+  const reembolsos = useOrgQuery<{ refundsPending: number }>('/v1/payments/gateway/transactions?refundRequired=true&limit=1', { refetchInterval: 60_000 });
   const [actual, setActual] = useState<string | null>(null);
   const [rechazar, setRechazar] = useState(false);
   const [ampliar, setAmpliar] = useState(false);
@@ -41,6 +43,15 @@ export default function Pagos() {
 
   return (
     <>
+      {(reembolsos.data?.refundsPending ?? 0) > 0 && (
+        <div className="note note--alerta" role="alert" style={{ marginBottom: 16 }}>
+          <Icon name="info" size={18} style={{ flex: 'none' }} />
+          <span>
+            Tienes {reembolsos.data!.refundsPending} pago{reembolsos.data!.refundsPending > 1 ? 's' : ''} en línea aprobado{reembolsos.data!.refundsPending > 1 ? 's' : ''} que no se pudo aplicar (los números ya no estaban disponibles). Hay que devolver el dinero.{' '}
+            <Link to="/admin/ajustes?tab=pagos" className="strong-link">Ver pagos</Link>
+          </span>
+        </div>
+      )}
       <PageHeader
         title="Verificar pagos"
         sub="Compara el comprobante con tu cuenta y aprueba. El participante recibe su boleto por WhatsApp al instante."
